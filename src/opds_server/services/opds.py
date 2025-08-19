@@ -146,18 +146,18 @@ def generate_title_feed(endpoint: str, page: int) -> str:
     return generate_feed(feed)
 
 
-def items_from_books(books: list[dict]) -> list[Item]:
+def items_from_books(books: dict[int, dict]) -> list[Item]:
     items = []
-    for book in books:
+    for book_id, book in books.items():
         items.append(
             Item(
                 title=book["title"],
-                id=generate_book_id(book["title"]),
+                id=generate_book_id(str(book_id)),
                 updated_time=book["last_modified"],
                 author=book["authors"][0],
                 links=f"""
-            <link type="application/pdf" href="/opds/book/{book["id"]}/file" rel="http://opds-spec.org/acquisition"/>
-            <link type="image/jpeg" href="/opds/book/{book["id"]}/cover" rel="http://opds-spec.org/image"/>
+            <link type="application/pdf" href="/opds/book/{book_id}/file" rel="http://opds-spec.org/acquisition"/>
+            <link type="image/jpeg" href="/opds/book/{book_id}/cover" rel="http://opds-spec.org/image"/>
             """,
             )
         )

@@ -74,7 +74,7 @@ def get_cover_path(book_id: int) -> Path:
         return cover
 
 
-def add_authors(books: list) -> list[dict]:
+def add_authors(books: list) -> dict[int, dict]:
     book_ids = [book[0] for book in books]
     with connect_db() as conn:
         cur = conn.cursor()
@@ -95,22 +95,20 @@ def add_authors(books: list) -> list[dict]:
         for book_id, author_id, name in cur.fetchall():
             authors_by_book[book_id].append({"id": author_id, "name": name})
 
-        result = []
+        result = {}
         for book_id, title, last_modified in books:
-            result.append(
-                {
-                    "id": book_id,
-                    "title": title,
-                    "last_modified": datetime.fromisoformat(last_modified),
-                    "authors": authors_by_book[book_id],
-                }
-            )
+            result[book_id] = {
+                "title": title,
+                "last_modified": datetime.fromisoformat(last_modified),
+                "authors": authors_by_book[book_id],
+            }
+
         return result
 
 
 def select_books(
     sql: str, page: int, limit: int = 10, parameters: list | None = None
-) -> tuple[list[dict], bool, bool]:
+) -> tuple[dict[int, dict], bool, bool]:
     with connect_db() as conn:
         cur = conn.cursor()
 
@@ -128,7 +126,7 @@ def select_books(
         return add_authors(books[:limit]), has_previous, has_next
 
 
-def get_recent_books(page: int, limit: int = 10) -> tuple[list[dict], bool, bool]:
+def get_recent_books(page: int, limit: int = 10) -> tuple[dict[int, dict], bool, bool]:
     sql = """
           SELECT id, title, last_modified
           FROM books
@@ -140,7 +138,7 @@ def get_recent_books(page: int, limit: int = 10) -> tuple[list[dict], bool, bool
 
 def search_books(
     query: str, page: int, limit: int = 10
-) -> tuple[list[dict], bool, bool]:
+) -> tuple[dict[int, dict], bool, bool]:
     sql = """
           SELECT id, title, last_modified
           FROM books
