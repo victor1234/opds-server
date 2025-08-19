@@ -6,33 +6,37 @@ from opds_server.services.opds import (
     generate_root_feed,
     generate_title_feed,
     generate_book_search_feed,
+    get_book_mime_type,
 )
-from opds_server.db.access import get_book_path, get_cover_path, get_book_title
+from opds_server.db.access import get_book_file_path, get_cover_path, get_book_title
 from fastapi.responses import FileResponse
 
 router = APIRouter()
 
 
-def title_to_filename(title: str, extension: str = ".epub") -> str:
+def title_to_filename(title: str, extension: str) -> str:
     title = unicodedata.normalize("NFKD", title)
 
     title = re.sub(r'[\\/*?:"<>|]', "_", title)
 
-    title = re.sub(r"\s+", " ", title).strip()
+    title = re.sub(r"\s+", " ", title).strip(" .")
+
+    if not title:
+        title = "book"
+
     title = title[:100]  # можно подстроить по нужной длине
 
-    return f"{title}{extension}"
+    return f"{title}.{extension}"
 
 
-@router.get("/opds/book/{book_id}/file")
-def download_book(book_id: int) -> FileResponse:
-    path = get_book_path(book_id)
+@router.get("/opds/book/{book_id}/file/{file_format}")
+def download_book(book_id: int, file_format: str) -> FileResponse:
+    path = get_book_file_path(book_id, file_format.upper())
     title = get_book_title(book_id)
-    extension = path.suffix
     return FileResponse(
         path,
-        media_type=f"application/{extension}",
-        filename=title_to_filename(title, extension=f".{extension}"),
+        media_type=get_book_mime_type(file_format.upper()),
+        filename=title_to_filename(title, extension=file_format.lower()),
     )
 
 

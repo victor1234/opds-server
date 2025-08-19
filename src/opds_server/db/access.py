@@ -34,21 +34,28 @@ def get_book_title(book_id: int) -> str:
         return row[0]
 
 
-def get_book_path(book_id: int) -> Path:
+def get_book_file_path(book_id: int, format: str) -> Path:
     with connect_db() as conn:
         cursor = conn.cursor()
+
+        # Fetch the folder path for the book
         cursor.execute("SELECT path FROM books WHERE id=?", (book_id,))
         row = cursor.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Book not found")
         folder = row[0]
 
-        cursor.execute("SELECT format, name FROM data WHERE book=?", (book_id,))
+        # Fetch the format and filename for the book
+        cursor.execute(
+            "SELECT name FROM data WHERE book=? AND format=?", (book_id, format)
+        )
         row2 = cursor.fetchone()
         if not row2:
             raise HTTPException(status_code=404, detail="Book file not found")
-        book_format, filename = row2
-        filename = Path(filename + "." + book_format.lower())
+        (filename,) = row2
+
+        filename = Path(filename + "." + format.lower())
+
         return Path(get_db_path().parent, folder, filename)
 
 
@@ -74,7 +81,7 @@ def get_cover_path(book_id: int) -> Path:
         return cover
 
 
-def add_authors(books: list) -> list[dict]:
+def add_authors(books: list) -> dict[int, dict]:
     book_ids = [book[0] for book in books]
     with connect_db() as conn:
         cur = conn.cursor()
@@ -95,22 +102,46 @@ def add_authors(books: list) -> list[dict]:
         for book_id, author_id, name in cur.fetchall():
             authors_by_book[book_id].append({"id": author_id, "name": name})
 
-        result = []
+        result = {}
         for book_id, title, last_modified in books:
-            result.append(
-                {
-                    "id": book_id,
-                    "title": title,
-                    "last_modified": datetime.fromisoformat(last_modified),
-                    "authors": authors_by_book[book_id],
-                }
-            )
+            result[book_id] = {
+                "title": title,
+                "last_modified": datetime.fromisoformat(last_modified),
+                "authors": authors_by_book[book_id],
+            }
+
         return result
+
+
+def add_files(books: dict[int, dict]) -> dict[int, dict]:
+    book_ids = list(books.keys())
+    with connect_db() as conn:
+        cur = conn.cursor()
+
+        files_by_book = defaultdict(list)
+
+        placeholders = ",".join("?" * len(book_ids))
+        cur.execute(
+            f"""
+        SELECT book, format, name
+        FROM data
+        WHERE book IN ({placeholders})
+        """,
+            book_ids,
+        )
+
+        for book_id, file_format, filename in cur.fetchall():
+            files_by_book[book_id].append({"format": file_format, "name": filename})
+
+        for book_id, book in books.items():
+            book["files"] = files_by_book.get(book_id, [])
+
+    return books
 
 
 def select_books(
     sql: str, page: int, limit: int = 10, parameters: list | None = None
-) -> tuple[list[dict], bool, bool]:
+) -> tuple[dict[int, dict], bool, bool]:
     with connect_db() as conn:
         cur = conn.cursor()
 
@@ -125,10 +156,13 @@ def select_books(
         has_next = len(books) > limit
         has_previous = offset > 0
 
-        return add_authors(books[:limit]), has_previous, has_next
+        books_dict = add_authors(books[:limit])
+        add_files(books_dict)
+
+        return books_dict, has_previous, has_next
 
 
-def get_recent_books(page: int, limit: int = 10) -> tuple[list[dict], bool, bool]:
+def get_recent_books(page: int, limit: int = 10) -> tuple[dict[int, dict], bool, bool]:
     sql = """
           SELECT id, title, last_modified
           FROM books
@@ -140,7 +174,7 @@ def get_recent_books(page: int, limit: int = 10) -> tuple[list[dict], bool, bool
 
 def search_books(
     query: str, page: int, limit: int = 10
-) -> tuple[list[dict], bool, bool]:
+) -> tuple[dict[int, dict], bool, bool]:
     sql = """
           SELECT id, title, last_modified
           FROM books

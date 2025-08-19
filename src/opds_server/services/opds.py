@@ -12,7 +12,9 @@ class Item:
     id: str
     updated_time: datetime
     links: str
+    db_id: int = -1
     author: dict = field(default_factory=dict)
+    files: list[dict] = field(default_factory=list)
     summary: str = ""
 
 
@@ -30,6 +32,24 @@ class Feed:
     parameters: dict = field(default_factory=dict)
 
 
+MIME_BY_EXT = {
+    "epub": "application/epub+zip",
+    "pdf": "application/pdf",
+    "mobi": "application/x-mobipocket-ebook",
+    "fb2": "application/x-fictionbook+xml",
+    "djvu": "image/vnd.djvu",
+}
+
+
+def get_book_mime_type(extension: str) -> str:
+    """Returns the MIME type for a given file extension.
+
+    If the extension is not recognized, returns 'application/octet-
+    stream'.
+    """
+    return MIME_BY_EXT.get(extension.lower(), "application/octet-stream")
+
+
 def get_search_link() -> str:
     return '<link type="application/opensearchdescription+xml" rel="search" title="Search" href="/opds/opensearch.xml"/>'
 
@@ -41,12 +61,24 @@ def get_start_link() -> str:
 def get_author_xml(author: dict) -> str:
     if author:
         return f"""
-        <author>
-            <name>{author["name"]}</name>
-        </author>
+            <author>
+                <name>{author["name"]}</name>
+            </author>
         """
     else:
         return ""
+
+
+def get_files_xml(book_id: int, files: list[dict]) -> str:
+    if not files:
+        return ""
+
+    files_xml = ""
+    for file in files:
+        file_format = file["format"].lower()
+        files_xml += f"""
+            <link rel="http://opds-spec.org/acquisition" type="{get_book_mime_type(file_format)}" href="/opds/book/{book_id}/file/{file_format}"/>"""
+    return files_xml
 
 
 def create_feed_links(feed: Feed) -> str:
@@ -85,6 +117,7 @@ def generate_feed(feed: Feed) -> str:
             <id>{item.id}</id>
             {get_author_xml(item.author)}
             <updated>{item.updated_time.strftime("%Y-%m-%dT%H:%M:%SZ")}</updated>
+            {get_files_xml(item.db_id, item.files)}
             {item.links}
         </entry>
     """
@@ -146,19 +179,18 @@ def generate_title_feed(endpoint: str, page: int) -> str:
     return generate_feed(feed)
 
 
-def items_from_books(books: list[dict]) -> list[Item]:
+def items_from_books(books: dict[int, dict]) -> list[Item]:
     items = []
-    for book in books:
+    for book_id, book in books.items():
         items.append(
             Item(
                 title=book["title"],
-                id=generate_book_id(book["title"]),
+                id=generate_book_id(str(book_id)),
+                db_id=book_id,
                 updated_time=book["last_modified"],
                 author=book["authors"][0],
-                links=f"""
-            <link type="application/pdf" href="/opds/book/{book["id"]}/file" rel="http://opds-spec.org/acquisition"/>
-            <link type="image/jpeg" href="/opds/book/{book["id"]}/cover" rel="http://opds-spec.org/image"/>
-            """,
+                files=book["files"],
+                links=f"""<link type="image/jpeg" href="/opds/book/{book_id}/cover" rel="http://opds-spec.org/image"/>""",
             )
         )
     return items
