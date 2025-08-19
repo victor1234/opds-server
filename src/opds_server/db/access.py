@@ -106,6 +106,32 @@ def add_authors(books: list) -> dict[int, dict]:
         return result
 
 
+def add_files(books: dict[int, dict]) -> dict[int, dict]:
+    book_ids = list(books.keys())
+    with connect_db() as conn:
+        cur = conn.cursor()
+
+        files_by_book = defaultdict(list)
+
+        placeholders = ",".join("?" * len(book_ids))
+        cur.execute(
+            f"""
+        SELECT book, format, name
+        FROM data
+        WHERE book IN ({placeholders})
+        """,
+            book_ids,
+        )
+
+        for book_id, file_format, filename in cur.fetchall():
+            files_by_book[book_id].append({"format": file_format, "name": filename})
+
+        for book_id, book in books.items():
+            book["files"] = files_by_book.get(book_id, [])
+
+    return books
+
+
 def select_books(
     sql: str, page: int, limit: int = 10, parameters: list | None = None
 ) -> tuple[dict[int, dict], bool, bool]:
@@ -123,7 +149,10 @@ def select_books(
         has_next = len(books) > limit
         has_previous = offset > 0
 
-        return add_authors(books[:limit]), has_previous, has_next
+        books_dict = add_authors(books[:limit])
+        add_files(books_dict)
+
+        return books_dict, has_previous, has_next
 
 
 def get_recent_books(page: int, limit: int = 10) -> tuple[dict[int, dict], bool, bool]:
