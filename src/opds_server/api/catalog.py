@@ -27,13 +27,12 @@ def title_to_filename(title: str, extension: str = ".epub") -> str:
 
 @router.get("/opds/book/{book_id}/file/{file_format}")
 def download_book(book_id: int, file_format: str) -> FileResponse:
-    path = get_book_file_path(book_id, file_format)
+    path = get_book_file_path(book_id, file_format.upper())
     title = get_book_title(book_id)
-    extension = path.suffix
     return FileResponse(
         path,
         media_type=get_book_mime_type(file_format.upper()),
-        filename=title_to_filename(title, extension=extension),
+        filename=title_to_filename(title, extension=file_format.lower()),
     )
 
 
