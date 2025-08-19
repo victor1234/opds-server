@@ -34,21 +34,28 @@ def get_book_title(book_id: int) -> str:
         return row[0]
 
 
-def get_book_path(book_id: int) -> Path:
+def get_book_file_path(book_id: int, format: str) -> Path:
     with connect_db() as conn:
         cursor = conn.cursor()
+
+        # Fetch the folder path for the book
         cursor.execute("SELECT path FROM books WHERE id=?", (book_id,))
         row = cursor.fetchone()
         if not row:
             raise HTTPException(status_code=404, detail="Book not found")
         folder = row[0]
 
-        cursor.execute("SELECT format, name FROM data WHERE book=?", (book_id,))
+        # Fetch the format and filename for the book
+        cursor.execute(
+            "SELECT name FROM data WHERE book=? AND format=?", (book_id, format)
+        )
         row2 = cursor.fetchone()
         if not row2:
             raise HTTPException(status_code=404, detail="Book file not found")
-        book_format, filename = row2
-        filename = Path(filename + "." + book_format.lower())
+        (filename,) = row2
+
+        filename = Path(filename + "." + format.lower())
+
         return Path(get_db_path().parent, folder, filename)
 
 

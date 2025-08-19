@@ -75,8 +75,9 @@ def get_files_xml(book_id: int, files: list[dict]) -> str:
 
     files_xml = ""
     for file in files:
+        file_format = file["format"].lower()
         files_xml += f"""
-            <link rel="http://opds-spec.org/acquisition" type="{get_book_mime_type(file["format"].lower())}" href="/opds/book/{book_id}/file"/>"""
+            <link rel="http://opds-spec.org/acquisition" type="{get_book_mime_type(file_format)}" href="/opds/book/{book_id}/file/{file_format}"/>"""
     return files_xml
 
 
@@ -189,9 +190,7 @@ def items_from_books(books: dict[int, dict]) -> list[Item]:
                 updated_time=book["last_modified"],
                 author=book["authors"][0],
                 files=book["files"],
-                links=f"""
-            <link type="image/jpeg" href="/opds/book/{book_id}/cover" rel="http://opds-spec.org/image"/>
-            """,
+                links=f"""<link type="image/jpeg" href="/opds/book/{book_id}/cover" rel="http://opds-spec.org/image"/>""",
             )
         )
     return items
