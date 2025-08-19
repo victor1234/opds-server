@@ -14,15 +14,19 @@ from fastapi.responses import FileResponse
 router = APIRouter()
 
 
-def title_to_filename(title: str, extension: str = ".epub") -> str:
+def title_to_filename(title: str, extension: str) -> str:
     title = unicodedata.normalize("NFKD", title)
 
     title = re.sub(r'[\\/*?:"<>|]', "_", title)
 
-    title = re.sub(r"\s+", " ", title).strip()
+    title = re.sub(r"\s+", " ", title).strip(" .")
+
+    if not title:
+        title = "book"
+
     title = title[:100]  # можно подстроить по нужной длине
 
-    return f"{title}{extension}"
+    return f"{title}.{extension}"
 
 
 @router.get("/opds/book/{book_id}/file/{file_format}")
