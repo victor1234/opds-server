@@ -227,7 +227,7 @@ def generate_by_author_feed(param, page):
         entries += f"""
         <entry>
             <title>{author[1]}</title>
-            <id>{author[0]}</id>
+            <id>urn:opds-server:author:{author[0]}</id>,
             <author>
                 <name>Calibre OPDS Server</name>
             </author>
@@ -239,7 +239,7 @@ def generate_by_author_feed(param, page):
     feed = f"""<?xml version="1.0" encoding="utf-8"?>
     <feed xmlns="http://www.w3.org/2005/Atom">
         <title>By Authors</title>
-        <id>urn:opds-server:by-title</id>
+        <id>urn:opds-server:by-author</id>
         <updated>{datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}</updated>
         <author>
             <name>Calibre OPDS Server</name>
