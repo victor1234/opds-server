@@ -181,6 +181,20 @@ def get_books(
     return select_books(sql, page, limit)
 
 
+def get_author_books(
+    author_id: int, page: int, limit: int = 10
+) -> tuple[dict[int, dict], bool, bool]:
+    sql = """
+          SELECT b.id, b.title, b.last_modified
+          FROM books b
+          JOIN books_authors_link bal ON b.id = bal.book
+          WHERE bal.author = ?
+          ORDER BY b.sort
+          """
+
+    return select_books(sql, page, limit, [author_id])
+
+
 def search_books(
     query: str, page: int, limit: int = 10
 ) -> tuple[dict[int, dict], bool, bool]:

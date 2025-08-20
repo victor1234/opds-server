@@ -1,4 +1,4 @@
-from opds_server.db.access import get_books, search_books
+from opds_server.db.access import get_books, search_books, get_author_books
 from datetime import datetime, timezone
 
 from opds_server.db.access import generate_book_id
@@ -63,6 +63,7 @@ def get_author_xml(author: dict) -> str:
         return f"""
             <author>
                 <name>{author["name"]}</name>
+                <uri>/opds/author</uri>
             </author>
         """
     else:
@@ -202,6 +203,26 @@ def generate_title_feed(endpoint: str, page: int) -> str:
         previous=has_previous,
     )
 
+    return generate_feed(feed)
+
+
+def generate_author_feed(
+    endpoint: str, author_id: int, page: int = 1, limit: int = 10
+) -> str:
+    books, has_previous, has_next = get_author_books(author_id, page=page)
+
+    items = items_from_books(books)
+
+    feed = Feed(
+        title=f"Books by Author ID {author_id}",
+        id=f"urn:opds-server:author:{author_id}",
+        updated_time=datetime.now(timezone.utc),
+        items=items,
+        endpoint=endpoint,
+        page=page,
+        next=has_next,
+        previous=has_previous,
+    )
     return generate_feed(feed)
 
 
