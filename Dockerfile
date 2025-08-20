@@ -14,7 +14,8 @@ RUN poetry config virtualenvs.create false \
   && poetry install --only main --no-root --no-interaction --no-ansi
 
 COPY src/ ./src/
-ENV PYTHONPATH=/app/src
+ENV PYTHONPATH=/app/src \
+    CALIBRE_LIBRARY_PATH=/app/calibre/
 
 RUN useradd -u 10001 -m appuser && chown -R appuser:appuser /app
 USER appuser
