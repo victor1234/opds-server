@@ -4,6 +4,7 @@ import unicodedata
 from fastapi import APIRouter, Response, Query
 from opds_server.services.opds import (
     generate_root_feed,
+    generate_newest_feed,
     generate_title_feed,
     generate_book_search_feed,
     get_book_mime_type,
@@ -70,6 +71,12 @@ def search(q: str, page: int = Query(1, ge=1)):
 @router.get("/opds", response_class=Response)
 def root_main():
     xml = generate_root_feed("/opds")
+    return Response(content=xml, media_type="application/atom+xml; charset=utf-8")
+
+
+@router.get("/opds/by-newest", response_class=Response)
+def root_by_newest(page: int = Query(1, ge=1)):
+    xml = generate_newest_feed("/opds/by-newest", page)
     return Response(content=xml, media_type="application/atom+xml; charset=utf-8")
 
 
