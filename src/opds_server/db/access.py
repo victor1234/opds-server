@@ -162,11 +162,20 @@ def select_books(
         return books_dict, has_previous, has_next
 
 
-def get_recent_books(page: int, limit: int = 10) -> tuple[dict[int, dict], bool, bool]:
-    sql = """
+def get_books(
+    sort: str, page: int, limit: int = 10
+) -> tuple[dict[int, dict], bool, bool]:
+    if sort == "by_title":
+        sort_field = "title"
+    elif sort == "by_newest":
+        sort_field = "last_modified"
+    else:
+        raise HTTPException(status_code=400, detail="Invalid sort parameter")
+
+    sql = f"""
           SELECT id, title, last_modified
           FROM books
-          ORDER BY sort
+          ORDER BY {sort_field}
           """
 
     return select_books(sql, page, limit)

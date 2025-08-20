@@ -1,4 +1,4 @@
-from opds_server.db.access import get_recent_books, search_books
+from opds_server.db.access import get_books, search_books
 from datetime import datetime, timezone
 
 from opds_server.db.access import generate_book_id
@@ -147,12 +147,19 @@ def generate_root_feed(endpoint: str) -> str:
 
     items = [
         Item(
+            title="By Newest",
+            id="urn:opds-server:by-newest:",
+            updated_time=feed.updated_time,
+            links='<link rel="http://opds-spec.org/sort" href="/opds/by-newest" type="application/atom+xml;type=feed;profile=opds-catalog"/>',
+            summary="Browse books by newest",
+        ),
+        Item(
             title="By Title",
             id="urn:opds-server:by-title:",
             updated_time=feed.updated_time,
             links='<link rel="http://opds-spec.org/sort" href="/opds/by-title" type="application/atom+xml;type=feed;profile=opds-catalog"/>',
             summary="Browse books by title",
-        )
+        ),
     ]
 
     feed.items = items
@@ -160,8 +167,27 @@ def generate_root_feed(endpoint: str) -> str:
     return generate_feed(feed)
 
 
+def generate_newest_feed(endpoint: str, page: int) -> str:
+    books, has_previous, has_next = get_books(sort="by_newest", page=page)
+
+    items = items_from_books(books)
+
+    feed = Feed(
+        title="Calibre OPDS Catalog",
+        id="urn:opds-server:by-newest",
+        updated_time=datetime.now(timezone.utc),
+        items=items,
+        endpoint=endpoint,
+        page=page,
+        next=has_next,
+        previous=has_previous,
+    )
+
+    return generate_feed(feed)
+
+
 def generate_title_feed(endpoint: str, page: int) -> str:
-    books, has_previous, has_next = get_recent_books(page=page)
+    books, has_previous, has_next = get_books(sort="by_title", page=page)
 
     items = items_from_books(books)
 
