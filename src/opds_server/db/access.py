@@ -81,6 +81,16 @@ def get_cover_path(book_id: int) -> Path:
         return cover
 
 
+def get_author_name(author_id: int) -> str:
+    with connect_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM authors WHERE id=?", (author_id,))
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Author not found")
+        return row[0]
+
+
 def add_authors(books: list) -> dict[int, dict]:
     book_ids = [book[0] for book in books]
     with connect_db() as conn:

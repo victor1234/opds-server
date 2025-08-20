@@ -1,4 +1,9 @@
-from opds_server.db.access import get_books, search_books, get_author_books
+from opds_server.db.access import (
+    get_books,
+    search_books,
+    get_author_books,
+    get_author_name,
+)
 from datetime import datetime, timezone
 
 from opds_server.db.access import generate_book_id
@@ -213,8 +218,10 @@ def generate_author_feed(
 
     items = items_from_books(books)
 
+    author_name = get_author_name(author_id)
+
     feed = Feed(
-        title=f"Books by Author ID {author_id}",
+        title=f"Books by {author_name}",
         id=f"urn:opds-server:author:{author_id}",
         updated_time=datetime.now(timezone.utc),
         items=items,
