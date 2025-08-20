@@ -1,4 +1,4 @@
-from opds_server.db.access import get_recent_books, search_books
+from opds_server.db.access import get_books, search_books
 from datetime import datetime, timezone
 
 from opds_server.db.access import generate_book_id
@@ -161,7 +161,7 @@ def generate_root_feed(endpoint: str) -> str:
 
 
 def generate_title_feed(endpoint: str, page: int) -> str:
-    books, has_previous, has_next = get_recent_books(page=page)
+    books, has_previous, has_next = get_books(sort="by_title", page=page)
 
     items = items_from_books(books)
 
