@@ -15,4 +15,17 @@ docker run --rm -p 9000:8000 \
   -v /path_to_calibre_directory:/app/calibre:ro \
   ghcr.io/victor1234/opds-server:latest
 ```
+
+### With Docker Compose
+```yaml
+version: "3.8"
+
+services:
+  opds:
+    build: .
+    ports:
+      - "9000:8000"
+    volumes:
+      - /path_to_calibre_directory:/app/calibre:ro
+```
 Then open http://localhost:8000/opds in your OPDS-compatible reader.
