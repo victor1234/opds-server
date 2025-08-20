@@ -7,6 +7,7 @@ from opds_server.services.opds import (
     generate_newest_feed,
     generate_title_feed,
     generate_book_search_feed,
+    generate_by_author_feed,
     generate_author_feed,
     get_book_mime_type,
 )
@@ -84,6 +85,12 @@ def root_by_newest(page: int = Query(1, ge=1)):
 @router.get("/opds/by-title", response_class=Response)
 def root_by_title(page: int = Query(1, ge=1)):
     xml = generate_title_feed("/opds/by-title", page)
+    return Response(content=xml, media_type="application/atom+xml; charset=utf-8")
+
+
+@router.get("/opds/by-author")
+def root_by_author(page: int = Query(1, ge=1)):
+    xml = generate_by_author_feed("/opds/by-author", page)
     return Response(content=xml, media_type="application/atom+xml; charset=utf-8")
 
 

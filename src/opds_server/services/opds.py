@@ -1,6 +1,7 @@
 from opds_server.db.access import (
     get_books,
     search_books,
+    get_authors,
     get_author_books,
     get_author_name,
 )
@@ -166,6 +167,13 @@ def generate_root_feed(endpoint: str) -> str:
             links='<link rel="http://opds-spec.org/sort" href="/opds/by-title" type="application/atom+xml;type=feed;profile=opds-catalog"/>',
             summary="Browse books by title",
         ),
+        Item(
+            title="By Author",
+            id="urn:opds-server:by-author:",
+            updated_time=feed.updated_time,
+            links='<link rel="http://opds-spec.org/sort" href="/opds/by-author" type="application/atom+xml;type=feed;profile=opds-catalog"/>',
+            summary="Browse books by author",
+        ),
     ]
 
     feed.items = items
@@ -209,6 +217,54 @@ def generate_title_feed(endpoint: str, page: int) -> str:
     )
 
     return generate_feed(feed)
+
+
+def generate_by_author_feed(param, page):
+    authors, has_previous, has_next = get_authors(page=page)
+
+    entries = ""
+    for author in authors:
+        entries += f"""
+        <entry>
+            <title>{author[1]}</title>
+            <id>{author[0]}</id>
+            <author>
+                <name>Calibre OPDS Server</name>
+            </author>
+            <updated>{datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}</updated>
+            <link type="application/atom+xml;profile=opds-catalog" href="/opds/author/{author[0]}"/>
+        </entry>
+    """
+
+    feed = f"""<?xml version="1.0" encoding="utf-8"?>
+    <feed xmlns="http://www.w3.org/2005/Atom">
+        <title>By Authors</title>
+        <id>urn:opds-server:by-title</id>
+        <updated>{datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}</updated>
+        <author>
+            <name>Calibre OPDS Server</name>
+        </author>"""
+    endpoint = "/opds/by-author"
+    feed += f"""
+        <link rel="self" href="{endpoint}?page={page}"
+            type="application/atom+xml;profile=opds-catalog"/>"""
+    feed += f"""
+        <link rel="first" href="{endpoint}?page=1"
+            type="application/atom+xml;profile=opds-catalog"/>"""
+    if has_previous:
+        feed += f"""
+        <link rel="previous" href="{endpoint}?page={page - 1}"
+            type="application/atom+xml;profile=opds-catalog"/>"""
+    if has_next:
+        feed += f"""
+        <link rel="next" href="{endpoint}?page={page + 1}"
+            type="application/atom+xml;profile=opds-catalog"/>
+        """
+    feed += f"""
+        {entries}
+    </feed>"""
+
+    return feed
 
 
 def generate_author_feed(
