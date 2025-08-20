@@ -63,7 +63,7 @@ def get_author_xml(author: dict) -> str:
         return f"""
             <author>
                 <name>{author["name"]}</name>
-                <uri>/opds/author</uri>
+                <uri>/opds/author/{author["id"]}</uri>
             </author>
         """
     else:
