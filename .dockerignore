@@ -1,0 +1,7 @@
+**
+
+!pyproject.toml
+!poetry.lock
+!src/
+
+src/**/__pycache__/
