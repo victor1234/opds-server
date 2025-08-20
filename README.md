@@ -12,7 +12,6 @@
 
 ```bash
 docker run --rm -p 9000:8000 \
-  -e CALIBRE_LIBRARY_PATH=/app/calibre \
   -v /path_to_calibre_directory:/app/calibre:ro \
   ghcr.io/victor1234/opds-server:latest
 ```
