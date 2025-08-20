@@ -81,6 +81,16 @@ def get_cover_path(book_id: int) -> Path:
         return cover
 
 
+def get_author_name(author_id: int) -> str:
+    with connect_db() as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM authors WHERE id=?", (author_id,))
+        row = cursor.fetchone()
+        if not row:
+            raise HTTPException(status_code=404, detail="Author not found")
+        return row[0]
+
+
 def add_authors(books: list) -> dict[int, dict]:
     book_ids = [book[0] for book in books]
     with connect_db() as conn:
@@ -179,6 +189,40 @@ def get_books(
           """
 
     return select_books(sql, page, limit)
+
+
+def get_authors(page: int, limit: int = 10) -> tuple[list, bool, bool]:
+    sql = """
+          SELECT id, name
+          FROM authors
+          ORDER BY sort
+          """
+
+    with connect_db() as conn:
+        cur = conn.cursor()
+        offset = (page - 1) * limit
+        sql += "LIMIT ? OFFSET ?"
+        cur.execute(sql, [limit + 1, offset])
+        authors = cur.fetchall()
+
+        has_next = len(authors) > limit
+        has_previous = offset > 0
+
+        return authors, has_previous, has_next
+
+
+def get_author_books(
+    author_id: int, page: int, limit: int = 10
+) -> tuple[dict[int, dict], bool, bool]:
+    sql = """
+          SELECT b.id, b.title, b.last_modified
+          FROM books b
+          JOIN books_authors_link bal ON b.id = bal.book
+          WHERE bal.author = ?
+          ORDER BY b.sort
+          """
+
+    return select_books(sql, page, limit, [author_id])
 
 
 def search_books(
