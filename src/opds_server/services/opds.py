@@ -130,7 +130,9 @@ def generate_feed(feed: Feed) -> str:
     """
 
     feed = f"""<?xml version="1.0" encoding="utf-8"?>
-    <feed xmlns="http://www.w3.org/2005/Atom">
+    <feed xmlns="http://www.w3.org/2005/Atom"
+            xmlns:dc="http://purl.org/dc/terms/"
+            xmlns:opds="http://opds-spec.org/2010/catalog">
         <title>{feed.title}</title>
         <id>{feed.id}</id>
         <updated>{feed.updated_time.strftime("%Y-%m-%dT%H:%M:%SZ")}</updated>
@@ -237,7 +239,9 @@ def generate_by_author_feed(param, page):
     """
 
     feed = f"""<?xml version="1.0" encoding="utf-8"?>
-    <feed xmlns="http://www.w3.org/2005/Atom">
+    <feed xmlns="http://www.w3.org/2005/Atom"
+            xmlns:dc="http://purl.org/dc/terms/"
+            xmlns:opds="http://opds-spec.org/2010/catalog">
         <title>By Authors</title>
         <id>urn:opds-server:by-author</id>
         <updated>{datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}</updated>
