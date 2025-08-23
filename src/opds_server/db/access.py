@@ -138,6 +138,10 @@ def add_authors(books: list) -> dict[int, dict]:
 
 
 def add_files(books: dict[int, dict]) -> dict[int, dict]:
+    """Add files to the books dictionary."""
+    if not books:
+        return books
+
     book_ids = list(books.keys())
     with connect_db() as conn:
         cur = conn.cursor()
