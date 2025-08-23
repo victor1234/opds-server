@@ -170,15 +170,18 @@ def add_files(books: dict[int, dict]) -> dict[int, dict]:
 def select_books(
     sql: str, page: int, limit: int = 10, parameters: list | None = None
 ) -> tuple[dict[int, dict], bool, bool]:
+    """Select books with pagination."""
+
+    if page < 1:
+        raise HTTPException(status_code=400, detail="Page number must be >= 1")
+
+    sql_paged = f"{sql.rstrip()} LIMIT ? OFFSET ?"
+
+    offset = (page - 1) * limit
+
     with connect_db() as conn:
         cur = conn.cursor()
-
-        offset = (page - 1) * limit
-        sql += "LIMIT ? OFFSET ?"
-        if parameters is None:
-            parameters = []
-        parameters += [limit + 1, offset]
-        cur.execute(sql, parameters)
+        cur.execute(sql_paged, list(parameters or []) + [limit + 1, offset])
         books = cur.fetchall()
 
         has_next = len(books) > limit
