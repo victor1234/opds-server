@@ -8,8 +8,12 @@ from collections import defaultdict
 
 
 def get_db_path() -> Path:
-    path = os.getenv("CALIBRE_LIBRARY_PATH", "/books").rstrip("/") + "/metadata.db"
-    return Path(path).resolve()
+    """Get absolute path to the Calibre metadata.db and ensure it exists."""
+    base = os.getenv("CALIBRE_LIBRARY_PATH", "/books").rstrip("/")
+    path = Path(base, "metadata.db").resolve()
+    if not path.exists():
+        raise HTTPException(status_code=500, detail=f"Calibre DB not found at {path}")
+    return path
 
 
 def get_db_uri() -> str:
