@@ -213,6 +213,9 @@ def get_books(
 
 
 def get_authors(page: int, limit: int = 10) -> tuple[list, bool, bool]:
+    if page < 1:
+        raise HTTPException(status_code=400, detail="Page must be >= 1")
+
     sql = """
           SELECT id, name
           FROM authors
@@ -222,14 +225,13 @@ def get_authors(page: int, limit: int = 10) -> tuple[list, bool, bool]:
     with connect_db() as conn:
         cur = conn.cursor()
         offset = (page - 1) * limit
-        sql += "LIMIT ? OFFSET ?"
-        cur.execute(sql, [limit + 1, offset])
+        cur.execute(f"{sql.rstrip()} LIMIT ? OFFSET ?", [limit + 1, offset])
         authors = cur.fetchall()
 
         has_next = len(authors) > limit
         has_previous = offset > 0
 
-        return authors, has_previous, has_next
+        return authors[:limit], has_previous, has_next
 
 
 def get_author_books(
