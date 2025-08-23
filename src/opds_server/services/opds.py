@@ -30,6 +30,7 @@ class Feed:
     id: str
     updated_time: datetime
     endpoint: str
+    kind: str
     links: str = ""
     items: list[Item] = field(default_factory=list)
     page: int = 1
@@ -98,18 +99,18 @@ def create_feed_links(feed: Feed) -> str:
 
     links += f"""
         <link rel="self" href="{feed.endpoint}?page={feed.page}{query}"
-            type="application/atom+xml;profile=opds-catalog"/>"""
+            type="application/atom+xml;profile=opds-catalog;kind={feed.kind}"/>"""
     links += f"""
         <link rel="first" href="{feed.endpoint}?page=1{query}"
-            type="application/atom+xml;profile=opds-catalog"/>"""
+            type="application/atom+xml;profile=opds-catalog;kind={feed.kind}"/>"""
     if feed.previous:
         links += f"""
         <link rel="previous" href="{feed.endpoint}?page={feed.page - 1}{query}"
-            type="application/atom+xml;profile=opds-catalog"/>"""
+            type="application/atom+xml;profile=opds-catalog;kind={feed.kind}"/>"""
     if feed.next:
         links += f"""
         <link rel="next" href="{feed.endpoint}?page={feed.page + 1}{query}"
-            type="application/atom+xml;profile=opds-catalog"/>
+            type="application/atom+xml;profile=opds-catalog;kind={feed.kind}"/>
         """
 
     return links
@@ -130,7 +131,9 @@ def generate_feed(feed: Feed) -> str:
     """
 
     feed = f"""<?xml version="1.0" encoding="utf-8"?>
-    <feed xmlns="http://www.w3.org/2005/Atom">
+    <feed xmlns="http://www.w3.org/2005/Atom"
+            xmlns:dc="http://purl.org/dc/terms/"
+            xmlns:opds="http://opds-spec.org/2010/catalog">
         <title>{feed.title}</title>
         <id>{feed.id}</id>
         <updated>{feed.updated_time.strftime("%Y-%m-%dT%H:%M:%SZ")}</updated>
@@ -150,6 +153,7 @@ def generate_root_feed(endpoint: str) -> str:
         id="urn:opds-server:main",
         updated_time=datetime.now(timezone.utc),
         endpoint=endpoint,
+        kind="navigation",
     )
 
     items = [
@@ -157,21 +161,21 @@ def generate_root_feed(endpoint: str) -> str:
             title="By Newest",
             id="urn:opds-server:by-newest:",
             updated_time=feed.updated_time,
-            links='<link rel="http://opds-spec.org/sort" href="/opds/by-newest" type="application/atom+xml;type=feed;profile=opds-catalog"/>',
+            links='<link rel="http://opds-spec.org/sort" href="/opds/by-newest" type="application/atom+xml;type=feed;profile=opds-catalog;kind=acquisition"/>',
             summary="Browse books by newest",
         ),
         Item(
             title="By Title",
             id="urn:opds-server:by-title:",
             updated_time=feed.updated_time,
-            links='<link rel="http://opds-spec.org/sort" href="/opds/by-title" type="application/atom+xml;type=feed;profile=opds-catalog"/>',
+            links='<link rel="http://opds-spec.org/sort" href="/opds/by-title" type="application/atom+xml;type=feed;profile=opds-catalog;kind=acquisition"/>',
             summary="Browse books by title",
         ),
         Item(
             title="By Author",
             id="urn:opds-server:by-author:",
             updated_time=feed.updated_time,
-            links='<link rel="http://opds-spec.org/sort" href="/opds/by-author" type="application/atom+xml;type=feed;profile=opds-catalog"/>',
+            links='<link rel="http://opds-spec.org/sort" href="/opds/by-author" type="application/atom+xml;type=feed;profile=opds-catalog;kind=navigation"/>',
             summary="Browse books by author",
         ),
     ]
@@ -195,6 +199,7 @@ def generate_newest_feed(endpoint: str, page: int) -> str:
         page=page,
         next=has_next,
         previous=has_previous,
+        kind="acquisition",
     )
 
     return generate_feed(feed)
@@ -214,6 +219,7 @@ def generate_title_feed(endpoint: str, page: int) -> str:
         page=page,
         next=has_next,
         previous=has_previous,
+        kind="acquisition",
     )
 
     return generate_feed(feed)
@@ -232,12 +238,14 @@ def generate_by_author_feed(param, page):
                 <name>Calibre OPDS Server</name>
             </author>
             <updated>{datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}</updated>
-            <link type="application/atom+xml;profile=opds-catalog" href="/opds/author/{author[0]}"/>
+            <link type="application/atom+xml;profile=opds-catalog;kind=acquisition" href="/opds/author/{author[0]}"/>
         </entry>
     """
 
     feed = f"""<?xml version="1.0" encoding="utf-8"?>
-    <feed xmlns="http://www.w3.org/2005/Atom">
+    <feed xmlns="http://www.w3.org/2005/Atom"
+            xmlns:dc="http://purl.org/dc/terms/"
+            xmlns:opds="http://opds-spec.org/2010/catalog">
         <title>By Authors</title>
         <id>urn:opds-server:by-author</id>
         <updated>{datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}</updated>
@@ -247,18 +255,18 @@ def generate_by_author_feed(param, page):
     endpoint = "/opds/by-author"
     feed += f"""
         <link rel="self" href="{endpoint}?page={page}"
-            type="application/atom+xml;profile=opds-catalog"/>"""
+            type="application/atom+xml;profile=opds-catalog;kind=navigation"/>"""
     feed += f"""
         <link rel="first" href="{endpoint}?page=1"
-            type="application/atom+xml;profile=opds-catalog"/>"""
+            type="application/atom+xml;profile=opds-catalog;kind=navigation"/>"""
     if has_previous:
         feed += f"""
         <link rel="previous" href="{endpoint}?page={page - 1}"
-            type="application/atom+xml;profile=opds-catalog"/>"""
+            type="application/atom+xml;profile=opds-catalog;kind=navigation"/>"""
     if has_next:
         feed += f"""
         <link rel="next" href="{endpoint}?page={page + 1}"
-            type="application/atom+xml;profile=opds-catalog"/>
+            type="application/atom+xml;profile=opds-catalog;kind=navigation"/>
         """
     feed += f"""
         {entries}
@@ -285,6 +293,7 @@ def generate_author_feed(
         page=page,
         next=has_next,
         previous=has_previous,
+        kind="acquisition",
     )
     return generate_feed(feed)
 
@@ -321,5 +330,6 @@ def generate_book_search_feed(
         next=has_next,
         previous=has_previous,
         parameters={"q": query},
+        kind="acquisition",
     )
     return generate_feed(feed)
