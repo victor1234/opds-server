@@ -39,27 +39,32 @@ def get_book_title(book_id: int) -> str:
 
 
 def get_book_file_path(book_id: int, book_format: str) -> Path:
+    """Get the absolute path to the book file in the specified format."""
     book_format = book_format.upper().strip()
     with connect_db() as conn:
         cursor = conn.cursor()
 
         # Fetch the folder path for the book
-        cursor.execute("SELECT path FROM books WHERE id=?", (book_id,))
-        row = cursor.fetchone()
-        if not row:
-            raise HTTPException(status_code=404, detail="Book not found")
-        folder = row[0]
+        book_row = cursor.execute(
+            "SELECT path FROM books WHERE id=?", (book_id,)
+        ).fetchone()
+        if not book_row:
+            raise HTTPException(
+                status_code=404, detail=f"Book with id={book_id} not found"
+            )
+        folder = book_row[0]
 
         # Fetch the format and filename for the book
-        cursor.execute(
-            "SELECT name FROM data WHERE book=? AND format=?", (book_id, book_format)
-        )
-        row2 = cursor.fetchone()
-        if not row2:
-            raise HTTPException(status_code=404, detail="Book file not found")
-        (filename,) = row2
-
-        filename = Path(filename + "." + book_format.lower())
+        file_row = cursor.execute(
+            "SELECT name FROM data WHERE book = ? AND format = ?",
+            (book_id, book_format),
+        ).fetchone()
+        if not file_row:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Book file not found for book_id={book_id} with format={book_format}",
+            )
+        filename = file_row[0] + "." + book_format.lower()
 
         return Path(get_db_path().parent, folder, filename).resolve()
 
