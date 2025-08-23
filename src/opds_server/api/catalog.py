@@ -34,7 +34,7 @@ def title_to_filename(title: str, extension: str) -> str:
 
 @router.get("/opds/book/{book_id}/file/{file_format}")
 def download_book(book_id: int, file_format: str) -> FileResponse:
-    path = get_book_file_path(book_id, file_format.upper())
+    path = get_book_file_path(book_id, file_format)
     title = get_book_title(book_id)
     return FileResponse(
         path,
