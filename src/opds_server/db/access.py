@@ -102,6 +102,10 @@ def get_author_name(author_id: int) -> str:
 
 
 def add_authors(books: list) -> dict[int, dict]:
+    """Add authors to the books dictionary."""
+    if not books:
+        return {}
+
     book_ids = [book[0] for book in books]
     with connect_db() as conn:
         cur = conn.cursor()
