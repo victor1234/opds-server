@@ -254,8 +254,8 @@ def search_books(
     sql = """
           SELECT id, title, last_modified
           FROM books
-          WHERE LOWER(title) LIKE LOWER(?)
+          WHERE title LIKE ? COLLATE NOCASE
           ORDER BY sort
           """
 
-    return select_books(sql, page, limit, ["%" + query + "%"])
+    return select_books(sql, page, limit, [f"%{query}%"])
