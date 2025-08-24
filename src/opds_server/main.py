@@ -20,7 +20,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="OPDS Server", version=app_version)
 
     # Include API routers
-    app.include_router(catalog.router, tags=["opds"])
+    app.include_router(catalog.router, prefix="/opds", tags=["opds"])
 
     # Set up logging
     log = logging.getLogger("uvicorn.error")
