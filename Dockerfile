@@ -21,7 +21,7 @@ ENV PYTHONPATH=/app/src \
     CALIBRE_LIBRARY_PATH=/app/calibre/
 
 # Create a non-root user to run the application
-RUN addgroup -S -g 1000 appuser && adduser -S -u 1000 -G appuser appser
+RUN addgroup -S -g 1000 appuser && adduser -S -u 1000 -G appuser appuser
 
 # Switch to the non-root user
 USER appuser
