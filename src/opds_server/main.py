@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException
-from starlette.responses import PlainTextResponse
+from starlette.responses import PlainTextResponse, RedirectResponse
 
 from opds_server.api import catalog
 import logging
@@ -21,6 +21,11 @@ def create_app() -> FastAPI:
 
     # Include API routers
     app.include_router(catalog.router, prefix="/opds", tags=["opds"])
+
+    @app.get("/", include_in_schema=False)
+    def root_redirect():
+        """Redirect root URL to the OPDS feed."""
+        return RedirectResponse(url="/opds", status_code=307)
 
     # Set up logging
     log = logging.getLogger("uvicorn.error")
