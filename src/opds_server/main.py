@@ -3,10 +3,21 @@ from starlette.responses import PlainTextResponse
 
 from opds_server.api import catalog
 import logging
+from importlib.metadata import version, PackageNotFoundError
+
+
+def _get_version(pkg: str) -> str:
+    try:
+        return version(pkg)
+    except PackageNotFoundError:
+        return "0.0.0"
 
 
 def create_app() -> FastAPI:
-    app = FastAPI(title="OPDS Server")
+    # Get application version
+    app_version = _get_version("opds-server")
+
+    app = FastAPI(title="OPDS Server", version=app_version)
 
     # Include API routers
     app.include_router(catalog.router, tags=["opds"])
