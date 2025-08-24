@@ -1,3 +1,4 @@
+from opds_server.core.config import Config
 from opds_server.db.access import (
     get_books,
     search_books,
@@ -181,8 +182,10 @@ def generate_root_feed(endpoint: str) -> str:
     return generate_feed(feed)
 
 
-def generate_newest_feed(endpoint: str, page: int) -> str:
-    books, has_previous, has_next = get_books(sort="by_newest", page=page)
+def generate_newest_feed(endpoint: str, page: int, config: Config) -> str:
+    books, has_previous, has_next = get_books(
+        sort="by_newest", page=page, config=config
+    )
 
     items = items_from_books(books)
 
@@ -200,8 +203,8 @@ def generate_newest_feed(endpoint: str, page: int) -> str:
     return generate_feed(feed)
 
 
-def generate_title_feed(endpoint: str, page: int) -> str:
-    books, has_previous, has_next = get_books(sort="by_title", page=page)
+def generate_title_feed(endpoint: str, page: int, config: Config) -> str:
+    books, has_previous, has_next = get_books(sort="by_title", page=page, config=config)
 
     items = items_from_books(books)
 
@@ -219,8 +222,8 @@ def generate_title_feed(endpoint: str, page: int) -> str:
     return generate_feed(feed)
 
 
-def generate_by_author_feed(param, page):
-    authors, has_previous, has_next = get_authors(page=page)
+def generate_by_author_feed(param, page, config: Config) -> str:
+    authors, has_previous, has_next = get_authors(page, config)
 
     entries = ""
     for author in authors:
@@ -268,13 +271,15 @@ def generate_by_author_feed(param, page):
 
 
 def generate_author_feed(
-    endpoint: str, author_id: int, page: int = 1, limit: int = 10
+    endpoint: str, author_id: int, page: int, config: Config
 ) -> str:
-    books, has_previous, has_next = get_author_books(author_id, page=page)
+    books, has_previous, has_next = get_author_books(
+        author_id, page=page, config=config
+    )
 
     items = items_from_books(books)
 
-    author_name = get_author_name(author_id)
+    author_name = get_author_name(author_id, config)
 
     feed = Feed(
         title=f"Books by {author_name}",
@@ -307,9 +312,11 @@ def items_from_books(books: dict[int, dict]) -> list[Item]:
 
 
 def generate_book_search_feed(
-    endpoint: str, query: str, page: int = 1, limit: int = 10
+    endpoint: str, query: str, page: int, config: Config, limit: int = 10
 ) -> str:
-    books, has_previous, has_next = search_books(query, page, limit)
+    books, has_previous, has_next = search_books(
+        query, page, config=config, limit=limit
+    )
     items = items_from_books(books)
     feed = Feed(
         title=f"Search results for '{query}'",

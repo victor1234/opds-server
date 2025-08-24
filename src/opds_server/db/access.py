@@ -1,35 +1,35 @@
 import sqlite3
-import os
 import hashlib
 from pathlib import Path
 from fastapi import HTTPException
 from datetime import datetime
 from collections import defaultdict
+from opds_server.core.config import Config
 
 
-def get_db_path() -> Path:
+def get_db_path(config: Config) -> Path:
     """Get absolute path to the Calibre metadata.db and ensure it exists."""
-    base = os.getenv("CALIBRE_LIBRARY_PATH", "/books").rstrip("/")
+    base = config.calibre_library_path
     path = Path(base, "metadata.db").resolve()
     if not path.exists():
         raise HTTPException(status_code=500, detail=f"Calibre DB not found at {path}")
     return path
 
 
-def get_db_uri() -> str:
-    return f"file:{get_db_path()}?mode=ro"
+def get_db_uri(config: Config) -> str:
+    return f"file:{get_db_path(config)}?mode=ro"
 
 
-def connect_db() -> sqlite3.Connection:
+def connect_db(config: Config) -> sqlite3.Connection:
     conn = sqlite3.connect(
-        get_db_uri(),
+        get_db_uri(config),
         uri=True,
     )
     return conn
 
 
-def get_book_title(book_id: int) -> str:
-    with connect_db() as conn:
+def get_book_title(book_id: int, config: Config) -> str:
+    with connect_db(config) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT title FROM books WHERE id=?", (book_id,))
         row = cursor.fetchone()
@@ -38,10 +38,10 @@ def get_book_title(book_id: int) -> str:
         return row[0]
 
 
-def get_book_file_path(book_id: int, book_format: str) -> Path:
+def get_book_file_path(book_id: int, book_format: str, config: Config) -> Path:
     """Get the absolute path to the book file in the specified format."""
     book_format = book_format.upper().strip()
-    with connect_db() as conn:
+    with connect_db(config) as conn:
         cursor = conn.cursor()
 
         # Fetch the folder path for the book
@@ -66,7 +66,7 @@ def get_book_file_path(book_id: int, book_format: str) -> Path:
             )
         filename = file_row[0] + "." + book_format.lower()
 
-        return Path(get_db_path().parent, folder, filename).resolve()
+        return Path(get_db_path(config).parent, folder, filename).resolve()
 
 
 def generate_book_id(title: str) -> str:
@@ -76,8 +76,8 @@ def generate_book_id(title: str) -> str:
     return f"{prefix}:{digest}"
 
 
-def get_cover_path(book_id: int) -> Path:
-    with connect_db() as conn:
+def get_cover_path(book_id: int, config: Config) -> Path:
+    with connect_db(config) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT path FROM books WHERE id=?", (book_id,))
         row = cursor.fetchone()
@@ -85,14 +85,14 @@ def get_cover_path(book_id: int) -> Path:
             raise HTTPException(status_code=404, detail="Book not found")
 
         folder = row[0]
-        cover = Path(get_db_path().parent, folder, "cover.jpg")
+        cover = Path(get_db_path(config).parent, folder, "cover.jpg")
         if not cover.exists():
             raise HTTPException(status_code=404, detail="Cover not found")
         return cover
 
 
-def get_author_name(author_id: int) -> str:
-    with connect_db() as conn:
+def get_author_name(author_id: int, config: Config) -> str:
+    with connect_db(config) as conn:
         cursor = conn.cursor()
         cursor.execute("SELECT name FROM authors WHERE id=?", (author_id,))
         row = cursor.fetchone()
@@ -101,13 +101,13 @@ def get_author_name(author_id: int) -> str:
         return row[0]
 
 
-def add_authors(books: list) -> dict[int, dict]:
+def add_authors(books: list, config: Config) -> dict[int, dict]:
     """Add authors to the books dictionary."""
     if not books:
         return {}
 
     book_ids = [book[0] for book in books]
-    with connect_db() as conn:
+    with connect_db(config) as conn:
         cur = conn.cursor()
 
         authors_by_book = defaultdict(list)
@@ -137,13 +137,13 @@ def add_authors(books: list) -> dict[int, dict]:
         return result
 
 
-def add_files(books: dict[int, dict]) -> dict[int, dict]:
+def add_files(books: dict[int, dict], config: Config) -> dict[int, dict]:
     """Add files to the books dictionary."""
     if not books:
         return books
 
     book_ids = list(books.keys())
-    with connect_db() as conn:
+    with connect_db(config) as conn:
         cur = conn.cursor()
 
         files_by_book = defaultdict(list)
@@ -168,7 +168,7 @@ def add_files(books: dict[int, dict]) -> dict[int, dict]:
 
 
 def select_books(
-    sql: str, page: int, limit: int = 10, parameters: list | None = None
+    sql: str, page: int, config: Config, limit: int = 10, parameters: list | None = None
 ) -> tuple[dict[int, dict], bool, bool]:
     """Select books with pagination."""
 
@@ -179,7 +179,7 @@ def select_books(
 
     offset = (page - 1) * limit
 
-    with connect_db() as conn:
+    with connect_db(config) as conn:
         cur = conn.cursor()
         cur.execute(sql_paged, list(parameters or []) + [limit + 1, offset])
         books = cur.fetchall()
@@ -187,14 +187,14 @@ def select_books(
         has_next = len(books) > limit
         has_previous = offset > 0
 
-        books_dict = add_authors(books[:limit])
-        add_files(books_dict)
+        books_dict = add_authors(books[:limit], config)
+        add_files(books_dict, config)
 
         return books_dict, has_previous, has_next
 
 
 def get_books(
-    sort: str, page: int, limit: int = 10
+    sort: str, page: int, config: Config, limit: int = 10
 ) -> tuple[dict[int, dict], bool, bool]:
     if sort == "by_title":
         sort_field = "title"
@@ -209,10 +209,10 @@ def get_books(
           ORDER BY {sort_field}
           """
 
-    return select_books(sql, page, limit)
+    return select_books(sql, page, config, limit)
 
 
-def get_authors(page: int, limit: int = 10) -> tuple[list, bool, bool]:
+def get_authors(page: int, config: Config, limit: int = 10) -> tuple[list, bool, bool]:
     if page < 1:
         raise HTTPException(status_code=400, detail="Page must be >= 1")
 
@@ -222,7 +222,7 @@ def get_authors(page: int, limit: int = 10) -> tuple[list, bool, bool]:
           ORDER BY sort
           """
 
-    with connect_db() as conn:
+    with connect_db(config) as conn:
         cur = conn.cursor()
         offset = (page - 1) * limit
         cur.execute(f"{sql.rstrip()} LIMIT ? OFFSET ?", [limit + 1, offset])
@@ -235,7 +235,7 @@ def get_authors(page: int, limit: int = 10) -> tuple[list, bool, bool]:
 
 
 def get_author_books(
-    author_id: int, page: int, limit: int = 10
+    author_id: int, page: int, config: Config, limit: int = 10
 ) -> tuple[dict[int, dict], bool, bool]:
     sql = """
           SELECT b.id, b.title, b.last_modified
@@ -245,11 +245,11 @@ def get_author_books(
           ORDER BY b.sort
           """
 
-    return select_books(sql, page, limit, [author_id])
+    return select_books(sql, page, config, limit, [author_id])
 
 
 def search_books(
-    query: str, page: int, limit: int = 10
+    query: str, page: int, config: Config, limit: int = 10
 ) -> tuple[dict[int, dict], bool, bool]:
     sql = """
           SELECT id, title, last_modified
@@ -258,4 +258,4 @@ def search_books(
           ORDER BY sort
           """
 
-    return select_books(sql, page, limit, [f"%{query}%"])
+    return select_books(sql, page, config, limit, [f"%{query}%"])
