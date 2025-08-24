@@ -1,5 +1,8 @@
 # OPDS Server
 
+[![CI](https://github.com/victor1234/opds-server/actions/workflows/ci.yml/badge.svg)](https://github.com/victor1234/opds-server/actions/workflows/ci.yml)
+
+
 📚 Minimal OPDS 1.2 server for browsing a Calibre database.
 
 ## Features
