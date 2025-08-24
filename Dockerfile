@@ -10,6 +10,8 @@ WORKDIR /app
 
 COPY pyproject.toml poetry.lock* /app/
 
+RUN /usr/local/bin/python -EsSc 'import platform; print(platform.python_version())'
+
 RUN poetry config virtualenvs.create false \
   && poetry -vvv install --only main --no-root --no-interaction --no-ansi
 
