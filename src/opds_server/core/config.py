@@ -8,6 +8,7 @@ class Config(BaseSettings):
     package_name: str = "opds-server"
     calibre_library_path: Path = "/books"
     opds_prefix: str = "/opds"
+    page_size: int = 30
 
 
 @lru_cache()

@@ -168,7 +168,7 @@ def add_files(books: dict[int, dict], config: Config) -> dict[int, dict]:
 
 
 def select_books(
-    sql: str, page: int, config: Config, limit: int = 10, parameters: list | None = None
+    sql: str, page: int, config: Config, parameters: list | None = None
 ) -> tuple[dict[int, dict], bool, bool]:
     """Select books with pagination."""
 
@@ -177,6 +177,7 @@ def select_books(
 
     sql_paged = f"{sql.rstrip()} LIMIT ? OFFSET ?"
 
+    limit = config.page_size
     offset = (page - 1) * limit
 
     with connect_db(config) as conn:
@@ -194,7 +195,9 @@ def select_books(
 
 
 def get_books(
-    sort: str, page: int, config: Config, limit: int = 10
+    sort: str,
+    page: int,
+    config: Config,
 ) -> tuple[dict[int, dict], bool, bool]:
     if sort == "by_title":
         sort_field = "title"
@@ -209,10 +212,10 @@ def get_books(
           ORDER BY {sort_field}
           """
 
-    return select_books(sql, page, config, limit)
+    return select_books(sql, page, config)
 
 
-def get_authors(page: int, config: Config, limit: int = 10) -> tuple[list, bool, bool]:
+def get_authors(page: int, config: Config) -> tuple[list, bool, bool]:
     if page < 1:
         raise HTTPException(status_code=400, detail="Page must be >= 1")
 
@@ -224,6 +227,7 @@ def get_authors(page: int, config: Config, limit: int = 10) -> tuple[list, bool,
 
     with connect_db(config) as conn:
         cur = conn.cursor()
+        limit = config.page_size
         offset = (page - 1) * limit
         cur.execute(f"{sql.rstrip()} LIMIT ? OFFSET ?", [limit + 1, offset])
         authors = cur.fetchall()
@@ -235,7 +239,9 @@ def get_authors(page: int, config: Config, limit: int = 10) -> tuple[list, bool,
 
 
 def get_author_books(
-    author_id: int, page: int, config: Config, limit: int = 10
+    author_id: int,
+    page: int,
+    config: Config,
 ) -> tuple[dict[int, dict], bool, bool]:
     sql = """
           SELECT b.id, b.title, b.last_modified
@@ -245,11 +251,13 @@ def get_author_books(
           ORDER BY b.sort
           """
 
-    return select_books(sql, page, config, limit, [author_id])
+    return select_books(sql, page, config, [author_id])
 
 
 def search_books(
-    query: str, page: int, config: Config, limit: int = 10
+    query: str,
+    page: int,
+    config: Config,
 ) -> tuple[dict[int, dict], bool, bool]:
     sql = """
           SELECT id, title, last_modified
@@ -258,4 +266,4 @@ def search_books(
           ORDER BY sort
           """
 
-    return select_books(sql, page, config, limit, [f"%{query}%"])
+    return select_books(sql, page, config, [f"%{query}%"])

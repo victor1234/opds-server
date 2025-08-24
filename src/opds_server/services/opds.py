@@ -312,10 +312,12 @@ def items_from_books(books: dict[int, dict]) -> list[Item]:
 
 
 def generate_book_search_feed(
-    endpoint: str, query: str, page: int, config: Config, limit: int = 10
+    endpoint: str, query: str, page: int, config: Config
 ) -> str:
     books, has_previous, has_next = search_books(
-        query, page, config=config, limit=limit
+        query,
+        page,
+        config=config,
     )
     items = items_from_books(books)
     feed = Feed(
