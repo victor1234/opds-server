@@ -5,6 +5,8 @@ from opds_server.api import catalog
 import logging
 from importlib.metadata import version, PackageNotFoundError
 
+from opds_server.db.access import connect_db
+
 
 def _get_version(pkg: str) -> str:
     try:
@@ -22,10 +24,23 @@ def create_app() -> FastAPI:
     # Include API routers
     app.include_router(catalog.router, prefix="/opds", tags=["opds"])
 
+    # Service endpoints
     @app.get("/", include_in_schema=False)
     def root_redirect():
         """Redirect root URL to the OPDS feed."""
         return RedirectResponse(url="/opds", status_code=307)
+
+    @app.get("/healthz", tags=["_service"], include_in_schema=False)
+    def healthz() -> PlainTextResponse:
+        """Liveness probe endpoint."""
+        return PlainTextResponse("ok")
+
+    @app.get("/ready", tags=["_service"], include_in_schema=False)
+    def ready() -> PlainTextResponse:
+        """Readiness probe endpoint."""
+        with connect_db() as conn:
+            conn.execute("SELECT 1")
+        return PlainTextResponse("ok")
 
     # Set up logging
     log = logging.getLogger("uvicorn.error")

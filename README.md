@@ -6,6 +6,10 @@
 - Supports OPDS v1.2
 - Opens the Calibre database in read-only mode
 
+## Service Endpoints
+- `/healthz` → *liveness probe* (returns `200` if the server process is alive)
+- `/ready` → *readiness probe* (returns `200` if the Calibre database is available)
+
 ## Installation / Run
 
 ### With Docker
