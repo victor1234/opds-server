@@ -6,6 +6,10 @@ import logging
 from importlib.metadata import version, PackageNotFoundError
 
 from opds_server.db.access import connect_db
+from opds_server.core.config import get_config, Config
+
+
+config = Config()
 
 
 def _get_version(pkg: str) -> str:
@@ -15,20 +19,22 @@ def _get_version(pkg: str) -> str:
         return "0.0.0"
 
 
-def create_app() -> FastAPI:
-    # Get application version
-    app_version = _get_version("opds-server")
+def create_app(config: Config | None = None) -> FastAPI:
+    config = config or get_config()
 
-    app = FastAPI(title="OPDS Server", version=app_version)
+    # Get application version
+    package_version = _get_version(config.package_name)
+
+    app = FastAPI(title=config.app_name, version=package_version)
 
     # Include API routers
-    app.include_router(catalog.router, prefix="/opds", tags=["opds"])
+    app.include_router(catalog.router, prefix=config.opds_prefix, tags=["opds"])
 
     # Service endpoints
     @app.get("/", include_in_schema=False)
     def root_redirect():
         """Redirect root URL to the OPDS feed."""
-        return RedirectResponse(url="/opds", status_code=307)
+        return RedirectResponse(url=config.opds_prefix, status_code=307)
 
     @app.get("/healthz", tags=["_service"], include_in_schema=False)
     def healthz() -> PlainTextResponse:
