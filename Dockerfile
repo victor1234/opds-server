@@ -1,4 +1,4 @@
-FROM python:3.12
+FROM python:3.12-alpine
 
 ENV POETRY_VERSION=2.1.4 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -10,6 +10,7 @@ WORKDIR /app
 
 COPY pyproject.toml poetry.lock* /app/
 
+# Warm up to avoid findpython timeout on arm64 build
 RUN /usr/local/bin/python -EsSc 'import platform; print(platform.python_version())'
 
 RUN poetry config virtualenvs.create false \
@@ -19,7 +20,10 @@ COPY src/ ./src/
 ENV PYTHONPATH=/app/src \
     CALIBRE_LIBRARY_PATH=/app/calibre/
 
-RUN useradd -u 10001 -m appuser && chown -R appuser:appuser /app
+# Create a non-root user to run the application
+RUN addgroup -S -g 1000 appuser && adduser -S -u 1000 -G appuser appser
+
+# Switch to the non-root user
 USER appuser
 
 EXPOSE 8000
