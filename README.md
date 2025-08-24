@@ -31,8 +31,6 @@ docker run --rm -p 9000:8000 \
 
 ### With Docker Compose
 ```yaml
-version: "3.8"
-
 services:
   opds:
     build: .
