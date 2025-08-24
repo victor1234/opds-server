@@ -1,6 +1,8 @@
 # OPDS Server
 
 [![CI](https://github.com/victor1234/opds-server/actions/workflows/ci.yml/badge.svg)](https://github.com/victor1234/opds-server/actions/workflows/ci.yml)
+[![Docker Image](https://img.shields.io/badge/docker-ghcr.io-blue)](https://ghcr.io/victor1234/opds-server)
+
 
 
 📚 Minimal OPDS 1.2 server for browsing a Calibre database.
