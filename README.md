@@ -10,6 +10,15 @@
 - `/healthz` → *liveness probe* (returns `200` if the server process is alive)
 - `/ready` → *readiness probe* (returns `200` if the Calibre database is available)
 
+## Configuration
+
+The server can be configured using environment variables
+
+| Variable               | Default  | Description                                      |
+|------------------------|----------|--------------------------------------------------|
+| `PAGE_SIZE`            | `30`     | Number of items (books, authors) shown per page in OPDS feeds. |
+
+
 ## Installation / Run
 
 ### With Docker
