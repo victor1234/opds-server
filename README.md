@@ -39,4 +39,4 @@ services:
     volumes:
       - /path_to_calibre_directory:/app/calibre:ro
 ```
-Then open http://localhost:8000/opds in your OPDS-compatible reader.
+Then open http://localhost:9000/opds in your OPDS-compatible reader.
