@@ -94,11 +94,11 @@ def get_start_link() -> str:
 def get_author_xml(author: dict) -> str:
     if author:
         name = xml_text(author["name"])
-        aid = xml_text(author["id"])
+        aid = xml_text(author.get("id", ""))
         return f"""
             <author>
                 <name>{name}</name>
-                <uri>/opds/author/{aid}</uri>
+                {f"<uri>/opds/author/{aid}</uri>" if aid else ""}
             </author>
         """
     else:
@@ -243,53 +243,38 @@ def generate_title_feed(endpoint: str, page: int, config: Config) -> str:
 
 
 def generate_by_author_feed(param, page, config: Config) -> str:
+    """Generate an OPDS feed listing authors."""
     authors, has_previous, has_next = get_authors(page, config)
 
-    updated_time = fmt_dt(datetime.now(timezone.utc))
+    updated_time = datetime.now(timezone.utc)
 
-    entries = ""
-    for author in authors:
-        entries += f"""
-        <entry>
-            <title>{xml_text(author[1])}</title>
-            <id>urn:opds-server:author:{xml_text(author[0])}</id>
-            <author>
-                <name>Calibre OPDS Server</name>
-            </author>
-            <updated>{updated_time}</updated>
-            <link type="application/atom+xml;profile=opds-catalog" href="/opds/author/{author[0]}"/>
-        </entry>
-    """
+    items: list[Item] = []
+    for author_id, author_name in authors:
+        items.append(
+            Item(
+                title=author_name,
+                id=f"urn:opds-server:author:{author_id}",
+                author={"name": "Calibre OPDS Server"},
+                updated_time=updated_time,
+                links=(
+                    f'<link type="application/atom+xml;profile=opds-catalog" '
+                    f'href="/opds/author/{author_id}"/>'
+                ),
+            )
+        )
 
-    feed = f"""<?xml version="1.0" encoding="utf-8"?>
-    <feed xmlns="http://www.w3.org/2005/Atom">
-        <title>By Authors</title>
-        <id>urn:opds-server:by-author</id>
-        <updated>{updated_time}</updated>
-        <author>
-            <name>Calibre OPDS Server</name>
-        </author>"""
-    endpoint = "/opds/by-author"
-    feed += f"""
-        <link rel="self" href="{endpoint}?page={page}"
-            type="application/atom+xml;profile=opds-catalog"/>"""
-    feed += f"""
-        <link rel="first" href="{endpoint}?page=1"
-            type="application/atom+xml;profile=opds-catalog"/>"""
-    if has_previous:
-        feed += f"""
-        <link rel="previous" href="{endpoint}?page={page - 1}"
-            type="application/atom+xml;profile=opds-catalog"/>"""
-    if has_next:
-        feed += f"""
-        <link rel="next" href="{endpoint}?page={page + 1}"
-            type="application/atom+xml;profile=opds-catalog"/>
-        """
-    feed += f"""
-        {entries}
-    </feed>"""
+    feed_obj = Feed(
+        title="By Authors",
+        id="urn:opds-server:by-author",
+        updated_time=updated_time,
+        items=items,
+        endpoint="/opds/by-author",
+        page=page,
+        previous=has_previous,
+        next=has_next,
+    )
 
-    return feed
+    return generate_feed(feed_obj)
 
 
 def generate_author_feed(
