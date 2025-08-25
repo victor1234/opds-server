@@ -238,6 +238,8 @@ def generate_title_feed(endpoint: str, page: int, config: Config) -> str:
 def generate_by_author_feed(param, page, config: Config) -> str:
     authors, has_previous, has_next = get_authors(page, config)
 
+    updated_time = fmt_dt(datetime.now(timezone.utc))
+
     entries = ""
     for author in authors:
         entries += f"""
@@ -247,7 +249,7 @@ def generate_by_author_feed(param, page, config: Config) -> str:
             <author>
                 <name>Calibre OPDS Server</name>
             </author>
-            <updated>{fmt_dt(datetime.now(timezone.utc))}</updated>
+            <updated>{updated_time}</updated>
             <link type="application/atom+xml;profile=opds-catalog" href="/opds/author/{author[0]}"/>
         </entry>
     """
@@ -256,7 +258,7 @@ def generate_by_author_feed(param, page, config: Config) -> str:
     <feed xmlns="http://www.w3.org/2005/Atom">
         <title>By Authors</title>
         <id>urn:opds-server:by-author</id>
-        <updated>{fmt_dt(datetime.now(timezone.utc))}</updated>
+        <updated>{updated_time}</updated>
         <author>
             <name>Calibre OPDS Server</name>
         </author>"""
