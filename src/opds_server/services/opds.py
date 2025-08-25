@@ -68,12 +68,27 @@ def get_book_mime_type(extension: str) -> str:
     return MIME_BY_EXT.get(extension.lower(), "application/octet-stream")
 
 
+def q(params: dict) -> str:
+    """Build escaped query tail like '&amp;a=1&amp;b=2' or '' if no params."""
+    if not params:
+        return ""
+    return "&amp;" + urlencode(params, doseq=True)
+
+
+def nav_link(rel: str, endpoint: str, page: int, params: dict) -> str:
+    """Uniform OPDS navigation link with profile type."""
+    return (
+        f'        <link rel="{rel}" href="{endpoint}?page={page}{q(params)}" '
+        f'type="application/atom+xml;profile=opds-catalog"/>'
+    )
+
+
 def get_search_link() -> str:
-    return '<link type="application/opensearchdescription+xml" rel="search" title="Search" href="/opds/opensearch.xml"/>'
+    return '        <link type="application/opensearchdescription+xml" rel="search" title="Search" href="/opds/opensearch.xml"/>'
 
 
 def get_start_link() -> str:
-    return '<link rel="start" href="/opds" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>'
+    return '        <link rel="start" href="/opds" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>'
 
 
 def get_author_xml(author: dict) -> str:
@@ -103,30 +118,21 @@ def get_files_xml(book_id: int, files: list[dict]) -> str:
 
 
 def create_feed_links(feed: Feed) -> str:
-    links = f"""
-        {feed.links}
-        {get_start_link()}
-        {get_search_link()}
-    """
-    query = "&amp;" + urlencode(feed.parameters) if feed.parameters else ""
-
-    links += f"""
-        <link rel="self" href="{feed.endpoint}?page={feed.page}{query}"
-            type="application/atom+xml;profile=opds-catalog"/>"""
-    links += f"""
-        <link rel="first" href="{feed.endpoint}?page=1{query}"
-            type="application/atom+xml;profile=opds-catalog"/>"""
+    parts = [
+        feed.links,
+        get_start_link(),
+        get_search_link(),
+        nav_link("self", feed.endpoint, feed.page, feed.parameters),
+        nav_link("first", feed.endpoint, 1, feed.parameters),
+    ]
     if feed.previous:
-        links += f"""
-        <link rel="previous" href="{feed.endpoint}?page={feed.page - 1}{query}"
-            type="application/atom+xml;profile=opds-catalog"/>"""
+        parts.append(
+            nav_link("previous", feed.endpoint, feed.page - 1, feed.parameters)
+        )
     if feed.next:
-        links += f"""
-        <link rel="next" href="{feed.endpoint}?page={feed.page + 1}{query}"
-            type="application/atom+xml;profile=opds-catalog"/>
-        """
+        parts.append(nav_link("next", feed.endpoint, feed.page + 1, feed.parameters))
 
-    return links
+    return "\n".join(parts)
 
 
 def generate_feed(feed: Feed) -> str:
