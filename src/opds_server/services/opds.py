@@ -34,6 +34,7 @@ class Feed:
     endpoint: str
     links: str = ""
     items: list[Item] = field(default_factory=list)
+    kind: str = "acquisition"
     page: int = 1
     previous: bool = False
     next: bool = False
@@ -81,11 +82,11 @@ def q(params: dict) -> str:
     return "&amp;" + urlencode(params, doseq=True)
 
 
-def nav_link(rel: str, endpoint: str, page: int, params: dict) -> str:
+def nav_link(rel: str, endpoint: str, page: int, params: dict, kind: str) -> str:
     """Uniform OPDS navigation link with profile type."""
     return (
         f'        <link rel="{rel}" href="{endpoint}?page={page}{q(params)}" '
-        f'type="application/atom+xml;profile=opds-catalog;kind=navigation"/>'
+        f'type="application/atom+xml;profile=opds-catalog;kind={kind}"/>'
     )
 
 
@@ -128,15 +129,19 @@ def create_feed_links(feed: Feed) -> str:
         feed.links,
         get_start_link(),
         get_search_link(),
-        nav_link("self", feed.endpoint, feed.page, feed.parameters),
-        nav_link("first", feed.endpoint, 1, feed.parameters),
+        nav_link("self", feed.endpoint, feed.page, feed.parameters, feed.kind),
+        nav_link("first", feed.endpoint, 1, feed.parameters, feed.kind),
     ]
     if feed.previous:
         parts.append(
-            nav_link("previous", feed.endpoint, feed.page - 1, feed.parameters)
+            nav_link(
+                "previous", feed.endpoint, feed.page - 1, feed.parameters, feed.kind
+            )
         )
     if feed.next:
-        parts.append(nav_link("next", feed.endpoint, feed.page + 1, feed.parameters))
+        parts.append(
+            nav_link("next", feed.endpoint, feed.page + 1, feed.parameters, feed.kind)
+        )
 
     return "\n".join(parts)
 
@@ -177,6 +182,7 @@ def generate_root_feed(endpoint: str) -> str:
         id="urn:opds-server:main",
         updated_time=datetime.now(timezone.utc),
         endpoint=endpoint,
+        kind="navigation",
     )
 
     items = [
@@ -221,6 +227,7 @@ def generate_newest_feed(endpoint: str, page: int, config: Config) -> str:
         updated_time=datetime.now(timezone.utc),
         items=items,
         endpoint=endpoint,
+        kind="acquisition",
         page=page,
         next=has_next,
         previous=has_previous,
@@ -240,6 +247,7 @@ def generate_title_feed(endpoint: str, page: int, config: Config) -> str:
         updated_time=datetime.now(timezone.utc),
         items=items,
         endpoint=endpoint,
+        kind="acquisition",
         page=page,
         next=has_next,
         previous=has_previous,
@@ -263,7 +271,7 @@ def generate_by_author_feed(endpoint: str, page, config: Config) -> str:
                 author={"name": "Calibre OPDS Server"},
                 updated_time=updated_time,
                 links=(
-                    f'<link type="application/atom+xml;profile=opds-catalog" '
+                    f'<link type="application/atom+xml;profile=opds-catalog;kind=acquisition" '
                     f'href="/opds/author/{author_id}"/>'
                 ),
             )
@@ -275,6 +283,7 @@ def generate_by_author_feed(endpoint: str, page, config: Config) -> str:
         updated_time=updated_time,
         items=items,
         endpoint=endpoint,
+        kind="navigation",
         page=page,
         previous=has_previous,
         next=has_next,
@@ -300,6 +309,7 @@ def generate_author_feed(
         updated_time=datetime.now(timezone.utc),
         items=items,
         endpoint=endpoint,
+        kind="acquisition",
         page=page,
         next=has_next,
         previous=has_previous,
@@ -339,6 +349,7 @@ def generate_book_search_feed(
         updated_time=datetime.now(timezone.utc),
         items=items,
         endpoint=endpoint,
+        kind="acquisition",
         page=page,
         next=has_next,
         previous=has_previous,
