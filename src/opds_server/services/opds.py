@@ -140,6 +140,7 @@ def generate_feed(feed: Feed) -> str:
             <updated>{fmt_dt(item.updated_time)}</updated>
             {get_files_xml(item.db_id, item.files)}
             {item.links}
+            <summary type="text">{xml_text(item.summary)}</summary>
         </entry>
     """
 
@@ -172,21 +173,21 @@ def generate_root_feed(endpoint: str) -> str:
             id="urn:opds-server:by-newest:",
             updated_time=feed.updated_time,
             links='<link rel="http://opds-spec.org/sort" href="/opds/by-newest" type="application/atom+xml;type=feed;profile=opds-catalog"/>',
-            summary="Browse books by newest",
+            summary="Books sorted by date",
         ),
         Item(
             title="By Title",
             id="urn:opds-server:by-title:",
             updated_time=feed.updated_time,
             links='<link rel="http://opds-spec.org/sort" href="/opds/by-title" type="application/atom+xml;type=feed;profile=opds-catalog"/>',
-            summary="Browse books by title",
+            summary="Books sorted by title",
         ),
         Item(
             title="By Author",
             id="urn:opds-server:by-author:",
             updated_time=feed.updated_time,
             links='<link rel="http://opds-spec.org/sort" href="/opds/by-author" type="application/atom+xml;type=feed;profile=opds-catalog"/>',
-            summary="Browse books by author",
+            summary="Books sorted by author",
         ),
     ]
 
