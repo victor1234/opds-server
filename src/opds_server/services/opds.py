@@ -85,7 +85,7 @@ def nav_link(rel: str, endpoint: str, page: int, params: dict) -> str:
     """Uniform OPDS navigation link with profile type."""
     return (
         f'        <link rel="{rel}" href="{endpoint}?page={page}{q(params)}" '
-        f'type="application/atom+xml;profile=opds-catalog"/>'
+        f'type="application/atom+xml;profile=opds-catalog;kind=navigation"/>'
     )
 
 
@@ -184,21 +184,21 @@ def generate_root_feed(endpoint: str) -> str:
             title="By Newest",
             id="urn:opds-server:by-newest:",
             updated_time=feed.updated_time,
-            links='<link rel="http://opds-spec.org/sort" href="/opds/by-newest" type="application/atom+xml;type=feed;profile=opds-catalog"/>',
+            links='<link rel="http://opds-spec.org/sort/new" href="/opds/by-newest" type="application/atom+xml;profile=opds-catalog;kind=acquisition"/>',
             summary="Books sorted by date",
         ),
         Item(
             title="By Title",
             id="urn:opds-server:by-title:",
             updated_time=feed.updated_time,
-            links='<link rel="http://opds-spec.org/sort" href="/opds/by-title" type="application/atom+xml;type=feed;profile=opds-catalog"/>',
+            links='<link rel="subsection" href="/opds/by-title" type="application/atom+xml;profile=opds-catalog;kind=acquisition"/>',
             summary="Books sorted by title",
         ),
         Item(
             title="By Author",
             id="urn:opds-server:by-author:",
             updated_time=feed.updated_time,
-            links='<link rel="http://opds-spec.org/sort" href="/opds/by-author" type="application/atom+xml;type=feed;profile=opds-catalog"/>',
+            links='<link rel="subsection" href="/opds/by-author" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>',
             summary="Books sorted by author",
         ),
     ]
