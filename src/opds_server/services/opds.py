@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 from opds_server.db.access import generate_book_id
 from dataclasses import dataclass, field
 from urllib.parse import urlencode
+import html
 
 
 @dataclass
@@ -48,6 +49,16 @@ MIME_BY_EXT = {
 }
 
 
+def xml_text(s: str | int) -> str:
+    """Escape text for safe placement into XML text nodes/attributes."""
+    return html.escape(str(s), quote=True)
+
+
+def fmt_dt(dt: datetime) -> str:
+    """Format datetime as Atom-compliant UTC timestamp."""
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def get_book_mime_type(extension: str) -> str:
     """Returns the MIME type for a given file extension.
 
@@ -67,10 +78,12 @@ def get_start_link() -> str:
 
 def get_author_xml(author: dict) -> str:
     if author:
+        name = xml_text(author["name"])
+        aid = xml_text(author["id"])
         return f"""
             <author>
-                <name>{author["name"]}</name>
-                <uri>/opds/author/{author["id"]}</uri>
+                <name>{name}</name>
+                <uri>/opds/author/{aid}</uri>
             </author>
         """
     else:
@@ -121,20 +134,20 @@ def generate_feed(feed: Feed) -> str:
     for item in feed.items:
         entries += f"""
         <entry>
-            <title>{item.title}</title>
-            <id>{item.id}</id>
+            <title>{xml_text(item.title)}</title>
+            <id>{xml_text(item.id)}</id>
             {get_author_xml(item.author)}
-            <updated>{item.updated_time.strftime("%Y-%m-%dT%H:%M:%SZ")}</updated>
+            <updated>{fmt_dt(item.updated_time)}</updated>
             {get_files_xml(item.db_id, item.files)}
             {item.links}
         </entry>
     """
 
-    feed = f"""<?xml version="1.0" encoding="utf-8"?>
+    feed_xml = f"""<?xml version="1.0" encoding="utf-8"?>
     <feed xmlns="http://www.w3.org/2005/Atom">
-        <title>{feed.title}</title>
-        <id>{feed.id}</id>
-        <updated>{feed.updated_time.strftime("%Y-%m-%dT%H:%M:%SZ")}</updated>
+        <title>{xml_text(feed.title)}</title>
+        <id>{xml_text(feed.id)}</id>
+        <updated>{fmt_dt(feed.updated_time)}</updated>
         <author>
             <name>Calibre OPDS Server</name>
         </author>
@@ -142,7 +155,7 @@ def generate_feed(feed: Feed) -> str:
         {entries}
     </feed>"""
 
-    return feed
+    return feed_xml
 
 
 def generate_root_feed(endpoint: str) -> str:
@@ -229,12 +242,12 @@ def generate_by_author_feed(param, page, config: Config) -> str:
     for author in authors:
         entries += f"""
         <entry>
-            <title>{author[1]}</title>
-            <id>urn:opds-server:author:{author[0]}</id>,
+            <title>{xml_text(author[1])}</title>
+            <id>urn:opds-server:author:{xml_text(author[0])}</id>,
             <author>
                 <name>Calibre OPDS Server</name>
             </author>
-            <updated>{datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}</updated>
+            <updated>{fmt_dt(datetime.now(timezone.utc))}</updated>
             <link type="application/atom+xml;profile=opds-catalog" href="/opds/author/{author[0]}"/>
         </entry>
     """
@@ -243,7 +256,7 @@ def generate_by_author_feed(param, page, config: Config) -> str:
     <feed xmlns="http://www.w3.org/2005/Atom">
         <title>By Authors</title>
         <id>urn:opds-server:by-author</id>
-        <updated>{datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}</updated>
+        <updated>{fmt_dt(datetime.now(timezone.utc))}</updated>
         <author>
             <name>Calibre OPDS Server</name>
         </author>"""
