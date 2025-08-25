@@ -243,7 +243,7 @@ def generate_by_author_feed(param, page, config: Config) -> str:
         entries += f"""
         <entry>
             <title>{xml_text(author[1])}</title>
-            <id>urn:opds-server:author:{xml_text(author[0])}</id>,
+            <id>urn:opds-server:author:{xml_text(author[0])}</id>
             <author>
                 <name>Calibre OPDS Server</name>
             </author>
