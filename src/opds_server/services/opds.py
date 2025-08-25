@@ -102,12 +102,15 @@ def get_author_xml(author: dict) -> str:
     if author:
         name = xml_text(author["name"])
         aid = xml_text(author.get("id", ""))
-        return f"""
-            <author>
-                <name>{name}</name>
-                {f"<uri>/opds/author/{aid}</uri>" if aid else ""}
-            </author>
-        """
+        parts = [
+            "<author>",
+            f"{16 * ' '}<name>{name}</name>",
+        ]
+        if aid:
+            parts.append(f"{16 * ' '}<uri>/opds/author/{aid}</uri>")
+        parts.append(f"{12 * ' '}</author>")
+
+        return "\n".join(parts)
     else:
         return ""
 
