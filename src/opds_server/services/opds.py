@@ -119,7 +119,7 @@ def get_files_xml(book_id: int, files: list[dict]) -> str:
     for file in files:
         file_format = file["format"].lower()
         files_xml += f"""
-            <link rel="http://opds-spec.org/acquisition/" type="{get_book_mime_type(file_format)}" href="/opds/book/{book_id}/file/{file_format}"/>"""
+            <link rel="http://opds-spec.org/acquisition" type="{get_book_mime_type(file_format)}" href="/opds/book/{book_id}/file/{file_format}"/>"""
     return files_xml
 
 
