@@ -113,7 +113,7 @@ def get_files_xml(book_id: int, files: list[dict]) -> str:
     for file in files:
         file_format = file["format"].lower()
         files_xml += f"""
-            <link rel="http://opds-spec.org/acquisition" type="{get_book_mime_type(file_format)}" href="/opds/book/{book_id}/file/{file_format}"/>"""
+            <link rel="http://opds-spec.org/acquisition/" type="{get_book_mime_type(file_format)}" href="/opds/book/{book_id}/file/{file_format}"/>"""
     return files_xml
 
 
@@ -242,7 +242,7 @@ def generate_title_feed(endpoint: str, page: int, config: Config) -> str:
     return generate_feed(feed)
 
 
-def generate_by_author_feed(param, page, config: Config) -> str:
+def generate_by_author_feed(endpoint: str, page, config: Config) -> str:
     """Generate an OPDS feed listing authors."""
     authors, has_previous, has_next = get_authors(page, config)
 
@@ -268,7 +268,7 @@ def generate_by_author_feed(param, page, config: Config) -> str:
         id="urn:opds-server:by-author",
         updated_time=updated_time,
         items=items,
-        endpoint="/opds/by-author",
+        endpoint=endpoint,
         page=page,
         previous=has_previous,
         next=has_next,
