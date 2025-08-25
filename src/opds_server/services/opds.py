@@ -46,6 +46,12 @@ MIME_BY_EXT = {
     "mobi": "application/x-mobipocket-ebook",
     "fb2": "application/x-fictionbook+xml",
     "djvu": "image/vnd.djvu",
+    "azw3": "application/vnd.amazon.ebook",
+    "azw": "application/vnd.amazon.ebook",
+    "cbz": "application/x-cbz",
+    "cbr": "application/x-cbr",
+    "txt": "text/plain; charset=utf-8",
+    "rtf": "application/rtf",
 }
 
 
