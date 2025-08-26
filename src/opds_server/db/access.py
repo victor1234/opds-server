@@ -1,5 +1,6 @@
 import hashlib
 from pathlib import Path
+
 from fastapi import HTTPException
 from datetime import datetime
 from collections import defaultdict
@@ -38,16 +39,16 @@ async def get_book_title(book_id: int, config: Config) -> str:
             return row[0]
 
 
-def get_book_file_path(book_id: int, book_format: str, config: Config) -> Path:
+async def get_book_file_path(book_id: int, book_format: str, config: Config) -> Path:
     """Get the absolute path to the book file in the specified format."""
     book_format = book_format.upper().strip()
-    with connect_db(config) as conn:
-        cursor = conn.cursor()
-
+    async with connect_db(config) as conn:
         # Fetch the folder path for the book
-        book_row = cursor.execute(
+        async with conn.execute(
             "SELECT path FROM books WHERE id=?", (book_id,)
-        ).fetchone()
+        ) as cursor:
+            book_row = await cursor.fetchone()
+
         if not book_row:
             raise HTTPException(
                 status_code=404, detail=f"Book with id={book_id} not found"
@@ -55,18 +56,19 @@ def get_book_file_path(book_id: int, book_format: str, config: Config) -> Path:
         folder = book_row[0]
 
         # Fetch the format and filename for the book
-        file_row = cursor.execute(
+        async with conn.execute(
             "SELECT name FROM data WHERE book = ? AND format = ?",
             (book_id, book_format),
-        ).fetchone()
+        ) as cursor:
+            file_row = await cursor.fetchone()
         if not file_row:
             raise HTTPException(
                 status_code=404,
                 detail=f"Book file not found for book_id={book_id} with format={book_format}",
             )
-        filename = file_row[0] + "." + book_format.lower()
+    filename = file_row[0] + "." + book_format.lower()
 
-        return Path(get_db_path(config).parent, folder, filename).resolve()
+    return Path(get_db_path(config).parent, folder, filename).resolve()
 
 
 def generate_book_id(title: str) -> str:
@@ -246,7 +248,7 @@ def get_author_books(
     sql = """
           SELECT b.id, b.title, b.last_modified
           FROM books b
-          JOIN books_authors_link bal ON b.id = bal.book
+                   JOIN books_authors_link bal ON b.id = bal.book
           WHERE bal.author = ?
           ORDER BY b.sort
           """
