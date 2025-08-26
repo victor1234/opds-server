@@ -10,6 +10,7 @@
 ## Features
 - Supports OPDS v1.2
 - Opens the Calibre database in read-only mode
+- Prebuilt multi-arch Docker images for amd64 and arm64
 
 ## Service Endpoints
 - `/healthz` → *liveness probe* (returns `200` if the server process is alive)
