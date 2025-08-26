@@ -197,21 +197,33 @@ def generate_root_feed(endpoint: str) -> str:
             title="By Newest",
             id="urn:opds-server:by-newest:",
             updated_time=feed.updated_time,
-            links='<link rel="http://opds-spec.org/sort/new" href="/opds/by-newest" type="application/atom+xml;profile=opds-catalog;kind=acquisition"/>',
+            links=link(
+                "http://opds-spec.org/sort/new",
+                "/opds/by-newest",
+                "application/atom+xml;profile=opds-catalog;kind=acquisition",
+            ),
             summary="Books sorted by date",
         ),
         Item(
             title="By Title",
             id="urn:opds-server:by-title:",
             updated_time=feed.updated_time,
-            links='<link rel="subsection" href="/opds/by-title" type="application/atom+xml;profile=opds-catalog;kind=acquisition"/>',
+            links=link(
+                "subsection",
+                "/opds/by-title",
+                "application/atom+xml;profile=opds-catalog;kind=acquisition",
+            ),
             summary="Books sorted by title",
         ),
         Item(
             title="By Author",
             id="urn:opds-server:by-author:",
             updated_time=feed.updated_time,
-            links='<link rel="subsection" href="/opds/by-author" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>',
+            links=link(
+                "subsection",
+                "/opds/by-author",
+                "application/atom+xml;profile=opds-catalog;kind=navigation",
+            ),
             summary="Books sorted by author",
         ),
     ]
