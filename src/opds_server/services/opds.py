@@ -12,6 +12,7 @@ from opds_server.db.access import generate_book_id
 from dataclasses import dataclass, field
 from urllib.parse import urlencode
 import html
+from opds_server.services.xmlutil import build_url, link
 
 
 @dataclass
@@ -84,10 +85,9 @@ def q(params: dict) -> str:
 
 def nav_link(rel: str, endpoint: str, page: int, params: dict, kind: str) -> str:
     """Uniform OPDS navigation link with profile type."""
-    return (
-        f'        <link rel="{rel}" href="{endpoint}?page={page}{q(params)}" '
-        f'type="application/atom+xml;profile=opds-catalog;kind={kind}"/>'
-    )
+    href_link = build_url(endpoint, {"page": page, **(params or {})})
+    type_ = f"application/atom+xml;profile=opds-catalog;kind={kind}"
+    return link(rel, href_link, type_)
 
 
 def get_search_link() -> str:
