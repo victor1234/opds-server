@@ -1,13 +1,12 @@
+import logging
+from importlib.metadata import PackageNotFoundError, version
+
 from fastapi import FastAPI, HTTPException
 from starlette.responses import PlainTextResponse, RedirectResponse
 
 from opds_server.api import catalog
-import logging
-from importlib.metadata import version, PackageNotFoundError
-
+from opds_server.core.config import Config, get_config
 from opds_server.db.access import connect_db
-from opds_server.core.config import get_config, Config
-
 
 config = Config()
 

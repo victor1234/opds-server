@@ -1,13 +1,14 @@
 import hashlib
+from collections import defaultdict
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 from typing import AsyncIterator
 
-from fastapi import HTTPException
-from datetime import datetime
-from collections import defaultdict
-from opds_server.core.config import Config
 import aiosqlite
+from fastapi import HTTPException
+
+from opds_server.core.config import Config
 
 
 def get_db_path(config: Config) -> Path:

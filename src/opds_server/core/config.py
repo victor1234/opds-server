@@ -1,6 +1,7 @@
 from functools import lru_cache
-from pydantic_settings import BaseSettings
 from pathlib import Path
+
+from pydantic_settings import BaseSettings
 
 
 class Config(BaseSettings):

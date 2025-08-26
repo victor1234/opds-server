@@ -1,17 +1,17 @@
+import html
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from urllib.parse import urlencode
+
 from opds_server.core.config import Config
 from opds_server.db.access import (
-    get_books,
-    search_books,
-    get_authors,
+    generate_book_id,
     get_author_books,
     get_author_name,
+    get_authors,
+    get_books,
+    search_books,
 )
-from datetime import datetime, timezone
-
-from opds_server.db.access import generate_book_id
-from dataclasses import dataclass, field
-from urllib.parse import urlencode
-import html
 
 
 @dataclass

@@ -1,21 +1,20 @@
 import re
 import unicodedata
 
-from fastapi import APIRouter, Response, Query
+from fastapi import APIRouter, Depends, Query, Response
+from fastapi.responses import FileResponse
 
+from opds_server.core.config import Config, get_config
+from opds_server.db.access import get_book_file_path, get_book_title, get_cover_path
 from opds_server.services.opds import (
-    generate_root_feed,
-    generate_newest_feed,
-    generate_title_feed,
+    generate_author_feed,
     generate_book_search_feed,
     generate_by_author_feed,
-    generate_author_feed,
+    generate_newest_feed,
+    generate_root_feed,
+    generate_title_feed,
     get_book_mime_type,
 )
-from opds_server.db.access import get_book_file_path, get_cover_path, get_book_title
-from fastapi import Depends
-from opds_server.core.config import Config, get_config
-from fastapi.responses import FileResponse
 
 router = APIRouter()
 
