@@ -1,10 +1,13 @@
-import sqlite3
 import hashlib
+from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import AsyncIterator
+
 from fastapi import HTTPException
 from datetime import datetime
 from collections import defaultdict
 from opds_server.core.config import Config
+import aiosqlite
 
 
 def get_db_path(config: Config) -> Path:
@@ -20,34 +23,39 @@ def get_db_uri(config: Config) -> str:
     return f"file:{get_db_path(config)}?mode=ro"
 
 
-def connect_db(config: Config) -> sqlite3.Connection:
-    conn = sqlite3.connect(
+@asynccontextmanager
+async def connect_db(config: Config) -> AsyncIterator[aiosqlite.Connection]:
+    conn = await aiosqlite.connect(
         get_db_uri(config),
         uri=True,
     )
-    return conn
+    try:
+        yield conn
+    finally:
+        await conn.close()
 
 
-def get_book_title(book_id: int, config: Config) -> str:
-    with connect_db(config) as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT title FROM books WHERE id=?", (book_id,))
-        row = cursor.fetchone()
-        if not row:
-            raise HTTPException(status_code=404, detail="Book not found")
-        return row[0]
+async def get_book_title(book_id: int, config: Config) -> str:
+    async with connect_db(config) as conn:
+        async with conn.execute(
+            "SELECT title FROM books WHERE id=?", (book_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Book not found")
+            return row[0]
 
 
-def get_book_file_path(book_id: int, book_format: str, config: Config) -> Path:
+async def get_book_file_path(book_id: int, book_format: str, config: Config) -> Path:
     """Get the absolute path to the book file in the specified format."""
     book_format = book_format.upper().strip()
-    with connect_db(config) as conn:
-        cursor = conn.cursor()
-
+    async with connect_db(config) as conn:
         # Fetch the folder path for the book
-        book_row = cursor.execute(
+        async with conn.execute(
             "SELECT path FROM books WHERE id=?", (book_id,)
-        ).fetchone()
+        ) as cursor:
+            book_row = await cursor.fetchone()
+
         if not book_row:
             raise HTTPException(
                 status_code=404, detail=f"Book with id={book_id} not found"
@@ -55,18 +63,19 @@ def get_book_file_path(book_id: int, book_format: str, config: Config) -> Path:
         folder = book_row[0]
 
         # Fetch the format and filename for the book
-        file_row = cursor.execute(
+        async with conn.execute(
             "SELECT name FROM data WHERE book = ? AND format = ?",
             (book_id, book_format),
-        ).fetchone()
+        ) as cursor:
+            file_row = await cursor.fetchone()
         if not file_row:
             raise HTTPException(
                 status_code=404,
                 detail=f"Book file not found for book_id={book_id} with format={book_format}",
             )
-        filename = file_row[0] + "." + book_format.lower()
+    filename = file_row[0] + "." + book_format.lower()
 
-        return Path(get_db_path(config).parent, folder, filename).resolve()
+    return Path(get_db_path(config).parent, folder, filename).resolve()
 
 
 def generate_book_id(title: str) -> str:
@@ -76,44 +85,44 @@ def generate_book_id(title: str) -> str:
     return f"{prefix}:{digest}"
 
 
-def get_cover_path(book_id: int, config: Config) -> Path:
-    with connect_db(config) as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT path FROM books WHERE id=?", (book_id,))
-        row = cursor.fetchone()
-        if not row:
-            raise HTTPException(status_code=404, detail="Book not found")
+async def get_cover_path(book_id: int, config: Config) -> Path:
+    async with connect_db(config) as conn:
+        async with conn.execute(
+            "SELECT path FROM books WHERE id=?", (book_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Book not found")
 
-        folder = row[0]
-        cover = Path(get_db_path(config).parent, folder, "cover.jpg")
-        if not cover.exists():
-            raise HTTPException(status_code=404, detail="Cover not found")
-        return cover
-
-
-def get_author_name(author_id: int, config: Config) -> str:
-    with connect_db(config) as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT name FROM authors WHERE id=?", (author_id,))
-        row = cursor.fetchone()
-        if not row:
-            raise HTTPException(status_code=404, detail="Author not found")
-        return row[0]
+    folder = row[0]
+    cover = Path(get_db_path(config).parent, folder, "cover.jpg")
+    if not cover.exists():
+        raise HTTPException(status_code=404, detail="Cover not found")
+    return cover
 
 
-def add_authors(books: list, config: Config) -> dict[int, dict]:
+async def get_author_name(author_id: int, config: Config) -> str:
+    async with connect_db(config) as conn:
+        async with conn.execute(
+            "SELECT name FROM authors WHERE id=?", (author_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Author not found")
+    return row[0]
+
+
+async def add_authors(books: list, config: Config) -> dict[int, dict]:
     """Add authors to the books dictionary."""
     if not books:
         return {}
 
     book_ids = [book[0] for book in books]
-    with connect_db(config) as conn:
-        cur = conn.cursor()
+    authors_by_book = defaultdict(list)
+    placeholders = ",".join("?" * len(book_ids))
 
-        authors_by_book = defaultdict(list)
-
-        placeholders = ",".join("?" * len(book_ids))
-        cur.execute(
+    async with connect_db(config) as conn:
+        async with conn.execute(
             f"""
         SELECT bal.book AS book_id, a.id, a.name
         FROM books_authors_link bal
@@ -121,53 +130,48 @@ def add_authors(books: list, config: Config) -> dict[int, dict]:
         WHERE bal.book IN ({placeholders})
         """,
             book_ids,
-        )
+        ) as cursor:
+            async for book_id, author_id, name in cursor:
+                authors_by_book[book_id].append({"id": author_id, "name": name})
 
-        for book_id, author_id, name in cur.fetchall():
-            authors_by_book[book_id].append({"id": author_id, "name": name})
+    result = {}
+    for book_id, title, last_modified in books:
+        result[book_id] = {
+            "title": title,
+            "last_modified": datetime.fromisoformat(last_modified),
+            "authors": authors_by_book[book_id],
+        }
 
-        result = {}
-        for book_id, title, last_modified in books:
-            result[book_id] = {
-                "title": title,
-                "last_modified": datetime.fromisoformat(last_modified),
-                "authors": authors_by_book[book_id],
-            }
-
-        return result
+    return result
 
 
-def add_files(books: dict[int, dict], config: Config) -> dict[int, dict]:
+async def add_files(books: dict[int, dict], config: Config) -> dict[int, dict]:
     """Add files to the books dictionary."""
     if not books:
         return books
 
     book_ids = list(books.keys())
-    with connect_db(config) as conn:
-        cur = conn.cursor()
-
-        files_by_book = defaultdict(list)
-
-        placeholders = ",".join("?" * len(book_ids))
-        cur.execute(
+    files_by_book = defaultdict(list)
+    placeholders = ",".join("?" * len(book_ids))
+    async with connect_db(config) as conn:
+        async with conn.execute(
             f"""
         SELECT book, format, name
         FROM data
         WHERE book IN ({placeholders})
         """,
             book_ids,
-        )
+        ) as cursor:
+            async for book_id, file_format, filename in cursor:
+                files_by_book[book_id].append({"format": file_format, "name": filename})
 
-        for book_id, file_format, filename in cur.fetchall():
-            files_by_book[book_id].append({"format": file_format, "name": filename})
-
-        for book_id, book in books.items():
-            book["files"] = files_by_book.get(book_id, [])
+    for book_id, book in books.items():
+        book["files"] = files_by_book.get(book_id, [])
 
     return books
 
 
-def select_books(
+async def select_books(
     sql: str, page: int, config: Config, parameters: list | None = None
 ) -> tuple[dict[int, dict], bool, bool]:
     """Select books with pagination."""
@@ -180,21 +184,22 @@ def select_books(
     limit = config.page_size
     offset = (page - 1) * limit
 
-    with connect_db(config) as conn:
-        cur = conn.cursor()
-        cur.execute(sql_paged, list(parameters or []) + [limit + 1, offset])
-        books = cur.fetchall()
+    async with connect_db(config) as conn:
+        async with conn.execute(
+            sql_paged, list(parameters or []) + [limit + 1, offset]
+        ) as cursor:
+            books = await cursor.fetchall()
 
-        has_next = len(books) > limit
-        has_previous = offset > 0
+    has_next = len(books) > limit
+    has_previous = offset > 0
 
-        books_dict = add_authors(books[:limit], config)
-        add_files(books_dict, config)
+    books_dict = await add_authors(books[:limit], config)
+    await add_files(books_dict, config)
 
-        return books_dict, has_previous, has_next
+    return books_dict, has_previous, has_next
 
 
-def get_books(
+async def get_books(
     sort: str,
     page: int,
     config: Config,
@@ -212,10 +217,10 @@ def get_books(
           ORDER BY {sort_field}
           """
 
-    return select_books(sql, page, config)
+    return await select_books(sql, page, config)
 
 
-def get_authors(page: int, config: Config) -> tuple[list, bool, bool]:
+async def get_authors(page: int, config: Config) -> tuple[list, bool, bool]:
     if page < 1:
         raise HTTPException(status_code=400, detail="Page must be >= 1")
 
@@ -225,20 +230,21 @@ def get_authors(page: int, config: Config) -> tuple[list, bool, bool]:
           ORDER BY sort
           """
 
-    with connect_db(config) as conn:
-        cur = conn.cursor()
-        limit = config.page_size
-        offset = (page - 1) * limit
-        cur.execute(f"{sql.rstrip()} LIMIT ? OFFSET ?", [limit + 1, offset])
-        authors = cur.fetchall()
+    limit = config.page_size
+    offset = (page - 1) * limit
+    async with connect_db(config) as conn:
+        async with conn.execute(
+            f"{sql.rstrip()} LIMIT ? OFFSET ?", [limit + 1, offset]
+        ) as cursor:
+            authors = await cursor.fetchall()
 
-        has_next = len(authors) > limit
-        has_previous = offset > 0
+    has_next = len(authors) > limit
+    has_previous = offset > 0
 
-        return authors[:limit], has_previous, has_next
+    return authors[:limit], has_previous, has_next
 
 
-def get_author_books(
+async def get_author_books(
     author_id: int,
     page: int,
     config: Config,
@@ -246,15 +252,15 @@ def get_author_books(
     sql = """
           SELECT b.id, b.title, b.last_modified
           FROM books b
-          JOIN books_authors_link bal ON b.id = bal.book
+                   JOIN books_authors_link bal ON b.id = bal.book
           WHERE bal.author = ?
           ORDER BY b.sort
           """
 
-    return select_books(sql, page, config, [author_id])
+    return await select_books(sql, page, config, [author_id])
 
 
-def search_books(
+async def search_books(
     query: str,
     page: int,
     config: Config,
@@ -266,4 +272,4 @@ def search_books(
           ORDER BY sort
           """
 
-    return select_books(sql, page, config, [f"%{query}%"])
+    return await select_books(sql, page, config, [f"%{query}%"])
