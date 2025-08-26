@@ -1,10 +1,10 @@
-import sqlite3
 import hashlib
 from pathlib import Path
 from fastapi import HTTPException
 from datetime import datetime
 from collections import defaultdict
 from opds_server.core.config import Config
+import aiosqlite
 
 
 def get_db_path(config: Config) -> Path:
@@ -20,22 +20,22 @@ def get_db_uri(config: Config) -> str:
     return f"file:{get_db_path(config)}?mode=ro"
 
 
-def connect_db(config: Config) -> sqlite3.Connection:
-    conn = sqlite3.connect(
+async def connect_db(config: Config) -> aiosqlite.Connection:
+    return await aiosqlite.connect(
         get_db_uri(config),
         uri=True,
     )
-    return conn
 
 
-def get_book_title(book_id: int, config: Config) -> str:
-    with connect_db(config) as conn:
-        cursor = conn.cursor()
-        cursor.execute("SELECT title FROM books WHERE id=?", (book_id,))
-        row = cursor.fetchone()
-        if not row:
-            raise HTTPException(status_code=404, detail="Book not found")
-        return row[0]
+async def get_book_title(book_id: int, config: Config) -> str:
+    async with await connect_db(config) as conn:
+        async with conn.execute(
+            "SELECT title FROM books WHERE id=?", (book_id,)
+        ) as cursor:
+            row = await cursor.fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Book not found")
+            return row[0]
 
 
 def get_book_file_path(book_id: int, book_format: str, config: Config) -> Path:
