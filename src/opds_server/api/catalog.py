@@ -36,11 +36,11 @@ def title_to_filename(title: str, extension: str) -> str:
 
 
 @router.get("/book/{book_id}/file/{file_format}")
-def download_book(
+async def download_book(
     book_id: int, file_format: str, config: Config = Depends(get_config)
 ) -> FileResponse:
-    path = get_book_file_path(book_id, file_format, config)
-    title = get_book_title(book_id, config)
+    path = await get_book_file_path(book_id, file_format, config)
+    title = await get_book_title(book_id, config)
     return FileResponse(
         path,
         media_type=get_book_mime_type(file_format.upper()),
@@ -49,8 +49,8 @@ def download_book(
 
 
 @router.get("/book/{book_id}/cover")
-def get_cover(book_id: int, config: Config = Depends(get_config)) -> FileResponse:
-    path = get_cover_path(book_id, config)
+async def get_cover(book_id: int, config: Config = Depends(get_config)) -> FileResponse:
+    path = await get_cover_path(book_id, config)
     return FileResponse(path, media_type="image/jpeg")
 
 
@@ -70,10 +70,10 @@ def get_opensearch() -> Response:
 
 
 @router.get("/search")
-def search(
+async def search(
     q: str, page: int = Query(1, ge=1), config: Config = Depends(get_config)
 ) -> Response:
-    xml = generate_book_search_feed("/opds/search", q, page, config)
+    xml = await generate_book_search_feed("/opds/search", q, page, config)
     return Response(content=xml, media_type="application/atom+xml; charset=utf-8")
 
 
@@ -84,26 +84,34 @@ def root_main():
 
 
 @router.get("/by-newest", response_class=Response)
-def root_by_newest(page: int = Query(1, ge=1), config: Config = Depends(get_config)):
-    xml = generate_newest_feed("/opds/by-newest", page, config)
+async def root_by_newest(
+    page: int = Query(1, ge=1), config: Config = Depends(get_config)
+):
+    xml = await generate_newest_feed("/opds/by-newest", page, config)
     return Response(content=xml, media_type="application/atom+xml; charset=utf-8")
 
 
 @router.get("/by-title", response_class=Response)
-def root_by_title(page: int = Query(1, ge=1), config: Config = Depends(get_config)):
-    xml = generate_title_feed("/opds/by-title", page, config)
+async def root_by_title(
+    page: int = Query(1, ge=1), config: Config = Depends(get_config)
+):
+    xml = await generate_title_feed("/opds/by-title", page, config)
     return Response(content=xml, media_type="application/atom+xml; charset=utf-8")
 
 
 @router.get("/by-author")
-def root_by_author(page: int = Query(1, ge=1), config: Config = Depends(get_config)):
-    xml = generate_by_author_feed("/opds/by-author", page, config)
+async def root_by_author(
+    page: int = Query(1, ge=1), config: Config = Depends(get_config)
+):
+    xml = await generate_by_author_feed("/opds/by-author", page, config)
     return Response(content=xml, media_type="application/atom+xml; charset=utf-8")
 
 
 @router.get("/author/{author_id}")
-def get_author_books(
+async def get_author_books(
     author_id: int, page: int = Query(1, ge=1), config: Config = Depends(get_config)
 ):
-    xml = generate_author_feed(f"/opds/author/{author_id}", author_id, page, config)
+    xml = await generate_author_feed(
+        f"/opds/author/{author_id}", author_id, page, config
+    )
     return Response(content=xml, media_type="application/atom+xml; charset=utf-8")

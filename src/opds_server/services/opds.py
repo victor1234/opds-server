@@ -217,8 +217,8 @@ def generate_root_feed(endpoint: str) -> str:
     return generate_feed(feed)
 
 
-def generate_newest_feed(endpoint: str, page: int, config: Config) -> str:
-    books, has_previous, has_next = get_books(
+async def generate_newest_feed(endpoint: str, page: int, config: Config) -> str:
+    books, has_previous, has_next = await get_books(
         sort="by_newest", page=page, config=config
     )
 
@@ -239,8 +239,10 @@ def generate_newest_feed(endpoint: str, page: int, config: Config) -> str:
     return generate_feed(feed)
 
 
-def generate_title_feed(endpoint: str, page: int, config: Config) -> str:
-    books, has_previous, has_next = get_books(sort="by_title", page=page, config=config)
+async def generate_title_feed(endpoint: str, page: int, config: Config) -> str:
+    books, has_previous, has_next = await get_books(
+        sort="by_title", page=page, config=config
+    )
 
     items = items_from_books(books)
 
@@ -259,9 +261,9 @@ def generate_title_feed(endpoint: str, page: int, config: Config) -> str:
     return generate_feed(feed)
 
 
-def generate_by_author_feed(endpoint: str, page, config: Config) -> str:
+async def generate_by_author_feed(endpoint: str, page, config: Config) -> str:
     """Generate an OPDS feed listing authors."""
-    authors, has_previous, has_next = get_authors(page, config)
+    authors, has_previous, has_next = await get_authors(page, config)
 
     updated_time = datetime.now(timezone.utc)
 
@@ -295,16 +297,16 @@ def generate_by_author_feed(endpoint: str, page, config: Config) -> str:
     return generate_feed(feed_obj)
 
 
-def generate_author_feed(
+async def generate_author_feed(
     endpoint: str, author_id: int, page: int, config: Config
 ) -> str:
-    books, has_previous, has_next = get_author_books(
+    books, has_previous, has_next = await get_author_books(
         author_id, page=page, config=config
     )
 
     items = items_from_books(books)
 
-    author_name = get_author_name(author_id, config)
+    author_name = await get_author_name(author_id, config)
 
     feed = Feed(
         title=f"Books by {author_name}",
@@ -337,10 +339,10 @@ def items_from_books(books: dict[int, dict]) -> list[Item]:
     return items
 
 
-def generate_book_search_feed(
+async def generate_book_search_feed(
     endpoint: str, query: str, page: int, config: Config
 ) -> str:
-    books, has_previous, has_next = search_books(
+    books, has_previous, has_next = await search_books(
         query,
         page,
         config=config,

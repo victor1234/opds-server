@@ -42,10 +42,10 @@ def create_app(config: Config | None = None) -> FastAPI:
         return PlainTextResponse("ok")
 
     @app.get("/ready", tags=["_service"], include_in_schema=False)
-    def ready() -> PlainTextResponse:
+    async def ready() -> PlainTextResponse:
         """Readiness probe endpoint."""
-        with connect_db() as conn:
-            conn.execute("SELECT 1")
+        async with connect_db(config) as conn:
+            await conn.execute("SELECT 1")
         return PlainTextResponse("ok")
 
     # Set up logging
