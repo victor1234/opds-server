@@ -349,7 +349,11 @@ def items_from_books(books: dict[int, dict]) -> list[Item]:
                 updated_time=book["last_modified"],
                 author=book["authors"][0],
                 files=book["files"],
-                links=f"""<link type="image/jpeg" href="/opds/book/{book_id}/cover" rel="http://opds-spec.org/image"/>""",
+                links=link(
+                    "http://opds-spec.org/image",
+                    f"/opds/book/{book_id}/cover",
+                    type_="image/jpeg",
+                ),
             )
         )
     return items
