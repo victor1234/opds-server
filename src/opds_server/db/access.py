@@ -138,32 +138,28 @@ async def add_authors(books: list, config: Config) -> dict[int, dict]:
     return result
 
 
-def add_files(books: dict[int, dict], config: Config) -> dict[int, dict]:
+async def add_files(books: dict[int, dict], config: Config) -> dict[int, dict]:
     """Add files to the books dictionary."""
     if not books:
         return books
 
     book_ids = list(books.keys())
-    with connect_db(config) as conn:
-        cur = conn.cursor()
-
-        files_by_book = defaultdict(list)
-
-        placeholders = ",".join("?" * len(book_ids))
-        cur.execute(
+    files_by_book = defaultdict(list)
+    placeholders = ",".join("?" * len(book_ids))
+    async with await connect_db(config) as conn:
+        async with conn.execute(
             f"""
         SELECT book, format, name
         FROM data
         WHERE book IN ({placeholders})
         """,
             book_ids,
-        )
+        ) as cursor:
+            async for book_id, file_format, filename in cursor.fetchall():
+                files_by_book[book_id].append({"format": file_format, "name": filename})
 
-        for book_id, file_format, filename in cur.fetchall():
-            files_by_book[book_id].append({"format": file_format, "name": filename})
-
-        for book_id, book in books.items():
-            book["files"] = files_by_book.get(book_id, [])
+    for book_id, book in books.items():
+        book["files"] = files_by_book.get(book_id, [])
 
     return books
 
