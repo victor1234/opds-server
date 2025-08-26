@@ -95,7 +95,9 @@ def get_search_link() -> str:
 
 
 def get_start_link() -> str:
-    return '        <link rel="start" href="/opds" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>'
+    return link(
+        "start", "/opds", "application/atom+xml;profile=opds-catalog;kind=navigation"
+    )
 
 
 def get_author_xml(author: dict) -> str:
@@ -116,15 +118,17 @@ def get_author_xml(author: dict) -> str:
 
 
 def get_files_xml(book_id: int, files: list[dict]) -> str:
-    if not files:
-        return ""
-
-    files_xml = ""
+    files_xml = []
     for file in files:
         file_format = file["format"].lower()
-        files_xml += f"""
-            <link rel="http://opds-spec.org/acquisition" type="{get_book_mime_type(file_format)}" href="/opds/book/{book_id}/file/{file_format}"/>"""
-    return files_xml
+        files_xml.append(
+            link(
+                "http://opds-spec.org/acquisition",
+                f"/opds/book/{book_id}/file/{file_format}",
+                get_book_mime_type(file_format),
+            )
+        )
+    return "\n".join(files_xml)
 
 
 def create_feed_links(feed: Feed) -> str:
