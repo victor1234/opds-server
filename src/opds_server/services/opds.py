@@ -10,8 +10,8 @@ from datetime import datetime, timezone
 
 from opds_server.db.access import generate_book_id
 from dataclasses import dataclass, field
-from urllib.parse import urlencode
 import html
+from opds_server.services.xmlutil import build_url, link
 
 
 @dataclass
@@ -75,27 +75,14 @@ def get_book_mime_type(extension: str) -> str:
     return MIME_BY_EXT.get(extension.lower(), "application/octet-stream")
 
 
-def q(params: dict) -> str:
-    """Build escaped query tail like '&amp;a=1&amp;b=2' or '' if no params."""
-    if not params:
-        return ""
-    return "&amp;" + urlencode(params, doseq=True)
-
-
-def nav_link(rel: str, endpoint: str, page: int, params: dict, kind: str) -> str:
-    """Uniform OPDS navigation link with profile type."""
-    return (
-        f'        <link rel="{rel}" href="{endpoint}?page={page}{q(params)}" '
-        f'type="application/atom+xml;profile=opds-catalog;kind={kind}"/>'
-    )
-
-
 def get_search_link() -> str:
     return '        <link type="application/opensearchdescription+xml" rel="search" title="Search" href="/opds/opensearch.xml"/>'
 
 
 def get_start_link() -> str:
-    return '        <link rel="start" href="/opds" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>'
+    return link(
+        "start", "/opds", "application/atom+xml;profile=opds-catalog;kind=navigation"
+    )
 
 
 def get_author_xml(author: dict) -> str:
@@ -116,34 +103,56 @@ def get_author_xml(author: dict) -> str:
 
 
 def get_files_xml(book_id: int, files: list[dict]) -> str:
-    if not files:
-        return ""
-
-    files_xml = ""
+    files_xml = []
     for file in files:
         file_format = file["format"].lower()
-        files_xml += f"""
-            <link rel="http://opds-spec.org/acquisition" type="{get_book_mime_type(file_format)}" href="/opds/book/{book_id}/file/{file_format}"/>"""
-    return files_xml
+        files_xml.append(
+            link(
+                "http://opds-spec.org/acquisition",
+                f"/opds/book/{book_id}/file/{file_format}",
+                get_book_mime_type(file_format),
+            )
+        )
+    return "\n".join(files_xml)
 
 
 def create_feed_links(feed: Feed) -> str:
+    parameters = dict(feed.parameters or {})
+    href_self = build_url(feed.endpoint, {"page": feed.page, **parameters})
+    href_first = build_url(feed.endpoint, {"page": 1, **parameters})
+
     parts = [
         feed.links,
         get_start_link(),
         get_search_link(),
-        nav_link("self", feed.endpoint, feed.page, feed.parameters, feed.kind),
-        nav_link("first", feed.endpoint, 1, feed.parameters, feed.kind),
+        link(
+            "self",
+            href_self,
+            f"application/atom+xml;profile=opds-catalog;kind={feed.kind}",
+        ),
+        link(
+            "first",
+            href_first,
+            f"application/atom+xml;profile=opds-catalog;kind={feed.kind}",
+        ),
     ]
     if feed.previous:
+        href_previous = build_url(feed.endpoint, {"page": feed.page - 1, **parameters})
         parts.append(
-            nav_link(
-                "previous", feed.endpoint, feed.page - 1, feed.parameters, feed.kind
+            link(
+                "previous",
+                href_previous,
+                f"application/atom+xml;profile=opds-catalog;kind={feed.kind}",
             )
         )
     if feed.next:
+        href_next = build_url(feed.endpoint, {"page": feed.page + 1, **parameters})
         parts.append(
-            nav_link("next", feed.endpoint, feed.page + 1, feed.parameters, feed.kind)
+            link(
+                "next",
+                href_next,
+                f"application/atom+xml;profile=opds-catalog;kind={feed.kind}",
+            )
         )
 
     return "\n".join(parts)
@@ -193,21 +202,33 @@ def generate_root_feed(endpoint: str) -> str:
             title="By Newest",
             id="urn:opds-server:by-newest:",
             updated_time=feed.updated_time,
-            links='<link rel="http://opds-spec.org/sort/new" href="/opds/by-newest" type="application/atom+xml;profile=opds-catalog;kind=acquisition"/>',
+            links=link(
+                "http://opds-spec.org/sort/new",
+                "/opds/by-newest",
+                "application/atom+xml;profile=opds-catalog;kind=acquisition",
+            ),
             summary="Books sorted by date",
         ),
         Item(
             title="By Title",
             id="urn:opds-server:by-title:",
             updated_time=feed.updated_time,
-            links='<link rel="subsection" href="/opds/by-title" type="application/atom+xml;profile=opds-catalog;kind=acquisition"/>',
+            links=link(
+                "subsection",
+                "/opds/by-title",
+                "application/atom+xml;profile=opds-catalog;kind=acquisition",
+            ),
             summary="Books sorted by title",
         ),
         Item(
             title="By Author",
             id="urn:opds-server:by-author:",
             updated_time=feed.updated_time,
-            links='<link rel="subsection" href="/opds/by-author" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>',
+            links=link(
+                "subsection",
+                "/opds/by-author",
+                "application/atom+xml;profile=opds-catalog;kind=navigation",
+            ),
             summary="Books sorted by author",
         ),
     ]
@@ -333,7 +354,11 @@ def items_from_books(books: dict[int, dict]) -> list[Item]:
                 updated_time=book["last_modified"],
                 author=book["authors"][0],
                 files=book["files"],
-                links=f"""<link type="image/jpeg" href="/opds/book/{book_id}/cover" rel="http://opds-spec.org/image"/>""",
+                links=link(
+                    "http://opds-spec.org/image",
+                    f"/opds/book/{book_id}/cover",
+                    type_="image/jpeg",
+                ),
             )
         )
     return items
