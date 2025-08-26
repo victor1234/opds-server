@@ -10,7 +10,6 @@ from datetime import datetime, timezone
 
 from opds_server.db.access import generate_book_id
 from dataclasses import dataclass, field
-from urllib.parse import urlencode
 import html
 from opds_server.services.xmlutil import build_url, link
 
@@ -76,20 +75,6 @@ def get_book_mime_type(extension: str) -> str:
     return MIME_BY_EXT.get(extension.lower(), "application/octet-stream")
 
 
-def q(params: dict) -> str:
-    """Build escaped query tail like '&amp;a=1&amp;b=2' or '' if no params."""
-    if not params:
-        return ""
-    return "&amp;" + urlencode(params, doseq=True)
-
-
-def nav_link(rel: str, endpoint: str, page: int, params: dict, kind: str) -> str:
-    """Uniform OPDS navigation link with profile type."""
-    href_link = build_url(endpoint, {"page": page, **(params or {})})
-    type_ = f"application/atom+xml;profile=opds-catalog;kind={kind}"
-    return link(rel, href_link, type_)
-
-
 def get_search_link() -> str:
     return '        <link type="application/opensearchdescription+xml" rel="search" title="Search" href="/opds/opensearch.xml"/>'
 
@@ -132,22 +117,42 @@ def get_files_xml(book_id: int, files: list[dict]) -> str:
 
 
 def create_feed_links(feed: Feed) -> str:
+    parameters = dict(feed.parameters or {})
+    href_self = build_url(feed.endpoint, {"page": feed.page, **parameters})
+    href_first = build_url(feed.endpoint, {"page": 1, **parameters})
+
     parts = [
         feed.links,
         get_start_link(),
         get_search_link(),
-        nav_link("self", feed.endpoint, feed.page, feed.parameters, feed.kind),
-        nav_link("first", feed.endpoint, 1, feed.parameters, feed.kind),
+        link(
+            "self",
+            href_self,
+            f"application/atom+xml;profile=opds-catalog;kind={feed.kind}",
+        ),
+        link(
+            "first",
+            href_first,
+            f"application/atom+xml;profile=opds-catalog;kind={feed.kind}",
+        ),
     ]
     if feed.previous:
+        href_previous = build_url(feed.endpoint, {"page": feed.page - 1, **parameters})
         parts.append(
-            nav_link(
-                "previous", feed.endpoint, feed.page - 1, feed.parameters, feed.kind
+            link(
+                "previous",
+                href_previous,
+                f"application/atom+xml;profile=opds-catalog;kind={feed.kind}",
             )
         )
     if feed.next:
+        href_next = build_url(feed.endpoint, {"page": feed.page + 1, **parameters})
         parts.append(
-            nav_link("next", feed.endpoint, feed.page + 1, feed.parameters, feed.kind)
+            link(
+                "next",
+                href_next,
+                f"application/atom+xml;profile=opds-catalog;kind={feed.kind}",
+            )
         )
 
     return "\n".join(parts)
