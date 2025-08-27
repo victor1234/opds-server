@@ -28,19 +28,19 @@ The server can be configured using environment variables
 
 ## Installation / Run
 
-### With Docker
+### Docker
 
 ```bash
 docker run --rm -p 9000:8000 \
   -v /path_to_calibre_directory:/app/calibre:ro \
-  ghcr.io/victor1234/opds-server:latest
+  ghcr.io/victor1234/opds-server:0.1.1
 ```
 
-### With Docker Compose
+### Docker Compose
 ```yaml
 services:
   opds:
-    build: .
+    image: ghcr.io/victor1234/opds-server:0.1.1
     ports:
       - "9000:8000"
     volumes:
