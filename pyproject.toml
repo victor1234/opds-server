@@ -3,8 +3,10 @@ name = "opds-server"
 version = "0.1.0"
 description = ""
 authors = [
-    {name = "Kataev Victor",email = "kataev.victor.1234@gmail.com"}
+    {name = "Kataev Viktor",email = "kataev.victor.1234@gmail.com"}
 ]
+license = "MIT"
+license-files=["LICENSE"]
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
