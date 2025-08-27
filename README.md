@@ -8,9 +8,10 @@
 📚 Minimal OPDS 1.2 server for browsing a Calibre database.
 
 ## Features
-- Supports OPDS v1.2
-- Opens the Calibre database in read-only mode
-- Prebuilt multi-arch Docker images for amd64 and arm64
+- OPDS v1.2 compliant feeds (navigation, acquisition, search)
+- Browse by newest, title, or author
+- Prebuilt multi-arch Docker images for `amd64` and `arm64`
+- Read-only access to Calibre database
 
 ## Service Endpoints
 - `/healthz` → *liveness probe* (returns `200` if the server process is alive)
