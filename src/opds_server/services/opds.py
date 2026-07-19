@@ -323,6 +323,7 @@ async def generate_author_feed(
 
 
 def items_from_books(books: dict[int, dict]) -> list[Item]:
+    """Convert database records to entries, including incomplete metadata."""
     items = []
     for book_id, book in books.items():
         items.append(
@@ -331,7 +332,8 @@ def items_from_books(books: dict[int, dict]) -> list[Item]:
                 id=generate_book_id(str(book_id)),
                 db_id=book_id,
                 updated_time=book["last_modified"],
-                author=book["authors"][0],
+                # Calibre libraries can contain books without an author link.
+                author=book["authors"][0] if book["authors"] else {},
                 files=book["files"],
                 links=f"""<link type="image/jpeg" href="/opds/book/{book_id}/cover" rel="http://opds-spec.org/image"/>""",
             )
