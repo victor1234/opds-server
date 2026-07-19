@@ -21,6 +21,11 @@ packages = [{include = "opds_server", from = "src"}]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.1"
+pytest-cov = "^6.2.1"
+
+[tool.pytest.ini_options]
+addopts = "--cov=opds_server --cov-report=term-missing --cov-fail-under=85"
+testpaths = ["tests"]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
