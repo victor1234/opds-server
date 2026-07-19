@@ -1,6 +1,6 @@
 [project]
 name = "opds-server"
-version = "0.1.0"
+version = "0.1.1"
 description = ""
 authors = [
     {name = "Kataev Viktor",email = "kataev.victor.1234@gmail.com"}
