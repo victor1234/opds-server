@@ -1,4 +1,5 @@
 import hashlib
+import logging
 from collections import defaultdict
 from contextlib import asynccontextmanager
 from datetime import datetime
@@ -9,6 +10,8 @@ import aiosqlite
 from fastapi import HTTPException
 
 from opds_server.core.config import Config
+
+log = logging.getLogger(__name__)
 
 
 def _resolve_library_file(config: Config, *components: str) -> Path:
@@ -70,6 +73,7 @@ async def get_book_file_path(book_id: int, book_format: str, config: Config) -> 
             book_row = await cursor.fetchone()
 
         if not book_row:
+            log.debug("Book file not found for book_id=%s", book_id)
             raise HTTPException(status_code=404, detail="Book file not found")
         folder = book_row[0]
 
@@ -80,12 +84,22 @@ async def get_book_file_path(book_id: int, book_format: str, config: Config) -> 
         ) as cursor:
             file_row = await cursor.fetchone()
         if not file_row:
+            log.debug(
+                "Book file not found for book_id=%s with format=%s",
+                book_id,
+                book_format,
+            )
             raise HTTPException(status_code=404, detail="Book file not found")
     filename = file_row[0] + "." + book_format.lower()
 
     try:
         return _resolve_library_file(config, folder, filename)
     except (OSError, ValueError):
+        log.debug(
+            "Book file target rejected for book_id=%s with format=%s",
+            book_id,
+            book_format,
+        )
         raise HTTPException(status_code=404, detail="Book file not found") from None
 
 
@@ -103,12 +117,14 @@ async def get_cover_path(book_id: int, config: Config) -> Path:
         ) as cursor:
             row = await cursor.fetchone()
     if not row:
+        log.debug("Cover not found for book_id=%s", book_id)
         raise HTTPException(status_code=404, detail="Cover not found")
 
     folder = row[0]
     try:
         return _resolve_library_file(config, folder, "cover.jpg")
     except (OSError, ValueError):
+        log.debug("Cover target rejected for book_id=%s", book_id)
         raise HTTPException(status_code=404, detail="Cover not found") from None
 
 
