@@ -31,7 +31,8 @@ def get_db_path(config: Config) -> Path:
     """Get absolute path to the Calibre metadata.db and ensure it exists."""
     try:
         return _resolve_library_file(config, "metadata.db")
-    except (OSError, ValueError):
+    except (OSError, ValueError) as exc:
+        log.debug("Calibre DB validation failed: %s", type(exc).__name__)
         raise HTTPException(status_code=500, detail="Calibre DB not found") from None
 
 
@@ -73,7 +74,11 @@ async def get_book_file_path(book_id: int, book_format: str, config: Config) -> 
             book_row = await cursor.fetchone()
 
         if not book_row:
-            log.debug("Book file not found for book_id=%s", book_id)
+            log.debug(
+                "Book file not found for book_id=%s with format=%s",
+                book_id,
+                book_format,
+            )
             raise HTTPException(status_code=404, detail="Book file not found")
         folder = book_row[0]
 
