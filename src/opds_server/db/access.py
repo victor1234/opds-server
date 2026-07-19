@@ -11,13 +11,25 @@ from fastapi import HTTPException
 from opds_server.core.config import Config
 
 
+def _resolve_library_file(config: Config, *components: str) -> Path:
+    """Resolve an existing regular file without leaving the Calibre library."""
+    root = config.calibre_library_path.resolve(strict=True)
+    paths = [Path(component) for component in components]
+    if any(path.is_absolute() or ".." in path.parts for path in paths):
+        raise ValueError("Library file path must be relative and traversal-free")
+    candidate = root.joinpath(*paths).resolve(strict=True)
+    candidate.relative_to(root)
+    if not candidate.is_file():
+        raise ValueError("Library path is not a file")
+    return candidate
+
+
 def get_db_path(config: Config) -> Path:
     """Get absolute path to the Calibre metadata.db and ensure it exists."""
-    base = config.calibre_library_path
-    path = Path(base, "metadata.db").resolve()
-    if not path.exists():
-        raise HTTPException(status_code=500, detail=f"Calibre DB not found at {path}")
-    return path
+    try:
+        return _resolve_library_file(config, "metadata.db")
+    except (OSError, ValueError):
+        raise HTTPException(status_code=500, detail="Calibre DB not found") from None
 
 
 def get_db_uri(config: Config) -> str:
@@ -58,9 +70,7 @@ async def get_book_file_path(book_id: int, book_format: str, config: Config) -> 
             book_row = await cursor.fetchone()
 
         if not book_row:
-            raise HTTPException(
-                status_code=404, detail=f"Book with id={book_id} not found"
-            )
+            raise HTTPException(status_code=404, detail="Book file not found")
         folder = book_row[0]
 
         # Fetch the format and filename for the book
@@ -70,13 +80,13 @@ async def get_book_file_path(book_id: int, book_format: str, config: Config) -> 
         ) as cursor:
             file_row = await cursor.fetchone()
         if not file_row:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Book file not found for book_id={book_id} with format={book_format}",
-            )
+            raise HTTPException(status_code=404, detail="Book file not found")
     filename = file_row[0] + "." + book_format.lower()
 
-    return Path(get_db_path(config).parent, folder, filename).resolve()
+    try:
+        return _resolve_library_file(config, folder, filename)
+    except (OSError, ValueError):
+        raise HTTPException(status_code=404, detail="Book file not found") from None
 
 
 def generate_book_id(title: str) -> str:
@@ -93,13 +103,13 @@ async def get_cover_path(book_id: int, config: Config) -> Path:
         ) as cursor:
             row = await cursor.fetchone()
     if not row:
-        raise HTTPException(status_code=404, detail="Book not found")
+        raise HTTPException(status_code=404, detail="Cover not found")
 
     folder = row[0]
-    cover = Path(get_db_path(config).parent, folder, "cover.jpg")
-    if not cover.exists():
-        raise HTTPException(status_code=404, detail="Cover not found")
-    return cover
+    try:
+        return _resolve_library_file(config, folder, "cover.jpg")
+    except (OSError, ValueError):
+        raise HTTPException(status_code=404, detail="Cover not found") from None
 
 
 async def get_author_name(author_id: int, config: Config) -> str:
