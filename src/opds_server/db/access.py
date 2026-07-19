@@ -15,11 +15,23 @@ log = logging.getLogger(__name__)
 
 
 def _resolve_library_file(config: Config, *components: str) -> Path:
-    """Resolve an existing regular file without leaving the Calibre library."""
+    """Resolve an existing regular file without leaving the Calibre library.
+
+    Symlinks are followed so their final target, rather than only their
+    visible path inside the library, is checked against the security
+    boundary.
+    """
+    # Resolve the root first so containment uses its canonical location.
     root = config.calibre_library_path.resolve(strict=True)
     paths = [Path(component) for component in components]
+
+    # Check raw database components before joining: absolute paths discard the
+    # root, while traversal should be rejected even if it resolves back inside.
     if any(path.is_absolute() or ".." in path.parts for path in paths):
         raise ValueError("Library file path must be relative and traversal-free")
+
+    # Strict resolution rejects missing targets and exposes escaping symlinks to
+    # relative_to(), which raises when the final target is outside the root.
     candidate = root.joinpath(*paths).resolve(strict=True)
     candidate.relative_to(root)
     if not candidate.is_file():

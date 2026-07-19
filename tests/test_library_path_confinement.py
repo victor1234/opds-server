@@ -1,3 +1,5 @@
+"""Integration tests for confining Calibre-controlled filesystem paths."""
+
 import sqlite3
 from pathlib import Path
 
@@ -11,6 +13,7 @@ from opds_server.main import create_app
 
 
 def make_library(tmp_path: Path, folder: str = "Author/Book", name: str = "Novel"):
+    """Create the minimal Calibre database and an app bound to its library."""
     library = tmp_path / "library"
     library.mkdir()
     connection = sqlite3.connect(library / "metadata.db")
@@ -32,6 +35,7 @@ def make_library(tmp_path: Path, folder: str = "Author/Book", name: str = "Novel
 
 
 def test_nested_book_and_cover_are_served(tmp_path: Path):
+    """Serve ordinary nested book and cover files from inside the library."""
     library, client = make_library(tmp_path)
     book_dir = library / "Author" / "Book"
     book_dir.mkdir(parents=True)
@@ -48,11 +52,13 @@ def test_nested_book_and_cover_are_served(tmp_path: Path):
 
 
 def test_internal_symlinks_are_served(tmp_path: Path):
+    """Allow symlinks when their resolved targets stay within the library."""
     library, client = make_library(tmp_path, folder="links", name="linked")
     target = library / "stored"
     target.mkdir()
     (target / "book.epub").write_bytes(b"internal book")
     (target / "image.jpg").write_bytes(b"internal cover")
+    # Both visible paths are symlinks, but their canonical targets remain safe.
     links = library / "links"
     links.mkdir()
     (links / "linked.epub").symlink_to(target / "book.epub")
@@ -64,6 +70,7 @@ def test_internal_symlinks_are_served(tmp_path: Path):
 
 @pytest.mark.parametrize("folder", ["../outside", "/tmp/outside"])
 def test_database_controlled_folder_cannot_escape(tmp_path: Path, folder: str):
+    """Reject traversal and absolute folder values read from metadata.db."""
     _, client = make_library(tmp_path, folder=folder)
 
     book = client.get("/opds/book/1/file/epub")
@@ -74,7 +81,10 @@ def test_database_controlled_folder_cannot_escape(tmp_path: Path, folder: str):
 
 
 def test_escaping_symlinks_are_rejected(tmp_path: Path):
+    """Reject in-library symlinks whose final targets are outside the
+    library."""
     library, client = make_library(tmp_path, folder="links", name="outside")
+    # The database-visible paths look internal, but both canonical targets escape.
     outside = tmp_path / "outside"
     outside.mkdir()
     (outside / "outside.epub").write_bytes(b"secret book")
@@ -90,6 +100,7 @@ def test_escaping_symlinks_are_rejected(tmp_path: Path):
 
 @pytest.mark.parametrize("target_kind", ["missing", "directory"])
 def test_missing_files_and_directories_return_404(tmp_path: Path, target_kind: str):
+    """Return not found when a target is absent or is not a regular file."""
     library, client = make_library(tmp_path)
     book_dir = library / "Author" / "Book"
     book_dir.mkdir(parents=True)
@@ -103,8 +114,11 @@ def test_missing_files_and_directories_return_404(tmp_path: Path, target_kind: s
 
 @pytest.mark.parametrize("db_kind", ["missing", "escaping_symlink"])
 def test_invalid_database_error_does_not_leak_paths(tmp_path: Path, db_kind: str):
+    """Hide filesystem details when metadata.db is missing or escapes via
+    symlink."""
     library = tmp_path / "library"
     library.mkdir()
+    # An escaping metadata.db symlink must behave like a missing database.
     if db_kind == "escaping_symlink":
         outside = tmp_path / "private-metadata.db"
         outside.write_bytes(b"not relevant")
