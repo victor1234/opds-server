@@ -6,6 +6,9 @@ from urllib.parse import parse_qs, urlsplit
 from xml.etree import ElementTree
 
 import pytest
+from pydantic import ValidationError
+
+from opds_server.core.config import Config
 
 ATOM = "http://www.w3.org/2005/Atom"
 OPENSEARCH = "http://a9.com/-/spec/opensearch/1.1/"
@@ -191,3 +194,76 @@ def test_error_responses_are_stable(catalog_client, path, status, message):
     assert response.status_code == status
     if message:
         assert response.text == message
+
+
+@pytest.mark.parametrize(
+    ("configured", "normalized"),
+    [("catalog/", "/catalog"), ("/nested/catalog///", "/nested/catalog"), ("/", "/")],
+)
+def test_opds_prefix_is_normalized(configured, normalized):
+    """Normalize leading and trailing slashes while preserving a root mount."""
+    config = Config(opds_prefix=configured)
+    assert config.opds_prefix == normalized
+
+
+@pytest.mark.parametrize(
+    "prefix",
+    ["", "   ", "//example.com/opds", "/opds?mode=test", "/opds#section", "/bad path"],
+)
+def test_invalid_opds_prefix_is_rejected(prefix):
+    """Reject prefixes that are not safe application URL paths."""
+    with pytest.raises(ValidationError):
+        Config(opds_prefix=prefix)
+
+
+def test_custom_opds_prefix_is_used_by_routes_and_generated_links(client_factory):
+    """Keep every advertised catalog URL beneath a normalized custom prefix."""
+    _, client = client_factory(opds_prefix="library/catalog/")
+    prefix = "/library/catalog"
+
+    redirect = client.get("/", follow_redirects=False)
+    assert (redirect.status_code, redirect.headers["location"]) == (307, prefix)
+    root_feed = parse_atom(client.get(prefix))
+    assert client.get("/opds").status_code == 404
+
+    for entry in entries(root_feed):
+        href = entry.find("atom:link", NS).get("href")
+        assert href.startswith(f"{prefix}/")
+        assert client.get(href).status_code == 200
+
+    title_feed = parse_atom(client.get(f"{prefix}/by-title"))
+    for link in title_feed.findall(".//atom:link", NS):
+        href = link.get("href")
+        assert href == prefix or href.startswith(f"{prefix}/")
+
+    author_uri = title_feed.findtext(".//atom:author/atom:uri", namespaces=NS)
+    assert author_uri.startswith(f"{prefix}/author/")
+
+    opensearch = ElementTree.fromstring(client.get(f"{prefix}/opensearch.xml").content)
+    assert (
+        opensearch.find("os:Url", NS).get("template")
+        == f"{prefix}/search?q={{searchTerms}}"
+    )
+
+
+def test_proxy_root_path_is_included_in_advertised_links(client_factory):
+    """Include the trusted ASGI root path in origin-relative catalog URLs."""
+    _, client = client_factory(opds_prefix="/catalog", root_path="/proxy")
+
+    redirect = client.get("/", follow_redirects=False)
+    assert redirect.headers["location"] == "/proxy/catalog"
+    feed = parse_atom(client.get("/catalog"))
+    assert links(feed, "start")[0].get("href") == "/proxy/catalog"
+    assert links(feed, "search")[0].get("href") == "/proxy/catalog/opensearch.xml"
+    for entry in entries(feed):
+        assert entry.find("atom:link", NS).get("href").startswith("/proxy/catalog/")
+
+
+def test_catalog_can_be_mounted_at_application_root(client_factory):
+    """Serve the catalog at root without creating a redirect loop."""
+    _, client = client_factory(opds_prefix="/")
+    feed = parse_atom(client.get("/", follow_redirects=False))
+    start = links(feed, "start")[0].get("href")
+    assert start == "/"
+    assert client.get("/by-title").status_code == 200
+    assert client.get("/opds").status_code == 404
