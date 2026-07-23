@@ -21,10 +21,18 @@
 
 The server can be configured using environment variables
 
-| Variable               | Default  | Description                                      |
-|------------------------|----------|--------------------------------------------------|
-| `PAGE_SIZE`            | `30`     | Number of items (books, authors) shown per page in OPDS feeds. |
+| Variable | Default | Description |
+|---|---|---|
+| `PAGE_SIZE` | `30` | Number of books or authors shown on each OPDS feed page. |
+| `OPDS_PREFIX` | `/opds` | URL path where the catalog is mounted. A leading slash is optional; trailing slashes are removed. |
 
+### Reverse proxies
+
+Catalog links are origin-relative and include both `OPDS_PREFIX` and the ASGI
+`root_path`. When a reverse proxy exposes the application beneath an additional
+path, configure the application server with that trusted root path (for example,
+`uvicorn --root-path /proxy`) and have the proxy strip `/proxy` before forwarding
+requests. Forwarded host and scheme headers are not used to build catalog links.
 
 ## Installation / Run
 

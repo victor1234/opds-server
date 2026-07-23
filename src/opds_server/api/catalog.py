@@ -1,7 +1,7 @@
 import re
 import unicodedata
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import FileResponse
 
 from opds_server.core.config import Config, get_config
@@ -17,6 +17,16 @@ from opds_server.services.opds import (
 )
 
 router = APIRouter()
+
+
+def external_config(request: Request, config: Config) -> Config:
+    """Include an ASGI proxy root path in URLs advertised to clients."""
+    root_path = request.scope.get("root_path", "")
+    if not root_path:
+        return config
+    return config.model_copy(
+        update={"opds_prefix": config.opds_path(root_path=root_path)}
+    )
 
 
 def title_to_filename(title: str, extension: str) -> str:
@@ -54,13 +64,16 @@ async def get_cover(book_id: int, config: Config = Depends(get_config)) -> FileR
 
 
 @router.get("/opensearch.xml")
-def get_opensearch() -> Response:
-    osd = """<?xml version="1.0" encoding="UTF-8"?>
+def get_opensearch(request: Request, config: Config = Depends(get_config)) -> Response:
+    """Return an OpenSearch document using the configured catalog path."""
+    config = external_config(request, config)
+    search_template = config.opds_path("search")
+    osd = f"""<?xml version="1.0" encoding="UTF-8"?>
     <OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
       <ShortName>OPDS Search</ShortName>
       <Description>Search books in the OPDS catalog</Description>
       <Url type="application/atom+xml;profile=opds-catalog;kind=acquisition"
-           template="/opds/search?q={searchTerms}"/>
+           template="{search_template}?q={{searchTerms}}"/>
     </OpenSearchDescription>
     """
     return Response(
@@ -70,47 +83,57 @@ def get_opensearch() -> Response:
 
 @router.get("/search")
 async def search(
-    q: str, page: int = Query(1, ge=1), config: Config = Depends(get_config)
+    request: Request,
+    q: str,
+    page: int = Query(1, ge=1),
+    config: Config = Depends(get_config),
 ) -> Response:
-    xml = await generate_book_search_feed("/opds/search", q, page, config)
+    xml = await generate_book_search_feed(q, page, external_config(request, config))
     return Response(content=xml, media_type="application/atom+xml; charset=utf-8")
 
 
 @router.get("/", response_class=Response)
-def root_main():
-    xml = generate_root_feed("/opds")
+def root_main(request: Request, config: Config = Depends(get_config)):
+    xml = generate_root_feed(external_config(request, config))
     return Response(content=xml, media_type="application/atom+xml; charset=utf-8")
 
 
 @router.get("/by-newest", response_class=Response)
 async def root_by_newest(
-    page: int = Query(1, ge=1), config: Config = Depends(get_config)
+    request: Request,
+    page: int = Query(1, ge=1),
+    config: Config = Depends(get_config),
 ):
-    xml = await generate_newest_feed("/opds/by-newest", page, config)
+    xml = await generate_newest_feed(page, external_config(request, config))
     return Response(content=xml, media_type="application/atom+xml; charset=utf-8")
 
 
 @router.get("/by-title", response_class=Response)
 async def root_by_title(
-    page: int = Query(1, ge=1), config: Config = Depends(get_config)
+    request: Request,
+    page: int = Query(1, ge=1),
+    config: Config = Depends(get_config),
 ):
-    xml = await generate_title_feed("/opds/by-title", page, config)
+    xml = await generate_title_feed(page, external_config(request, config))
     return Response(content=xml, media_type="application/atom+xml; charset=utf-8")
 
 
 @router.get("/by-author")
 async def root_by_author(
-    page: int = Query(1, ge=1), config: Config = Depends(get_config)
+    request: Request,
+    page: int = Query(1, ge=1),
+    config: Config = Depends(get_config),
 ):
-    xml = await generate_by_author_feed("/opds/by-author", page, config)
+    xml = await generate_by_author_feed(page, external_config(request, config))
     return Response(content=xml, media_type="application/atom+xml; charset=utf-8")
 
 
 @router.get("/author/{author_id}")
 async def get_author_books(
-    author_id: int, page: int = Query(1, ge=1), config: Config = Depends(get_config)
+    request: Request,
+    author_id: int,
+    page: int = Query(1, ge=1),
+    config: Config = Depends(get_config),
 ):
-    xml = await generate_author_feed(
-        f"/opds/author/{author_id}", author_id, page, config
-    )
+    xml = await generate_author_feed(author_id, page, external_config(request, config))
     return Response(content=xml, media_type="application/atom+xml; charset=utf-8")
