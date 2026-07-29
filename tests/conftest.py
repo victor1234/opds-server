@@ -88,7 +88,6 @@ def client_factory(tmp_path: Path) -> Callable[..., tuple[Path, TestClient]]:
         populated: bool = True,
         page_size: int = 2,
         opds_prefix: str = "/opds",
-        root_path: str = "",
     ) -> tuple[Path, TestClient]:
         nonlocal sequence
         sequence += 1
@@ -108,9 +107,7 @@ def client_factory(tmp_path: Path) -> Callable[..., tuple[Path, TestClient]]:
         )
         app = create_app(config)
         app.dependency_overrides[get_config] = lambda: config
-        return library, TestClient(
-            app, root_path=root_path, raise_server_exceptions=False
-        )
+        return library, TestClient(app, raise_server_exceptions=False)
 
     return make_client
 

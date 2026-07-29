@@ -246,19 +246,6 @@ def test_custom_opds_prefix_is_used_by_routes_and_generated_links(client_factory
     )
 
 
-def test_proxy_root_path_is_included_in_advertised_links(client_factory):
-    """Include the trusted ASGI root path in origin-relative catalog URLs."""
-    _, client = client_factory(opds_prefix="/catalog", root_path="/proxy")
-
-    redirect = client.get("/", follow_redirects=False)
-    assert redirect.headers["location"] == "/proxy/catalog"
-    feed = parse_atom(client.get("/catalog"))
-    assert links(feed, "start")[0].get("href") == "/proxy/catalog"
-    assert links(feed, "search")[0].get("href") == "/proxy/catalog/opensearch.xml"
-    for entry in entries(feed):
-        assert entry.find("atom:link", NS).get("href").startswith("/proxy/catalog/")
-
-
 def test_catalog_can_be_mounted_at_application_root(client_factory):
     """Serve the catalog at root without creating a redirect loop."""
     _, client = client_factory(opds_prefix="/")

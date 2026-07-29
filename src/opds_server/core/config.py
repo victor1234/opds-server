@@ -33,13 +33,11 @@ class Config(BaseSettings):
 
         return prefix if prefix == "/" else prefix.rstrip("/")
 
-    def opds_path(self, suffix: str = "", root_path: str = "") -> str:
-        """Build an external path beneath the proxy and OPDS mount paths."""
-        proxy_path = root_path.rstrip("/")
-        catalog_path = "" if self.opds_prefix == "/" else self.opds_prefix
-        base = f"{proxy_path}{catalog_path}"
+    def opds_path(self, suffix: str = "") -> str:
+        """Build an application path beneath the configured OPDS mount."""
         if not suffix:
-            return base or "/"
+            return self.opds_prefix
+        base = "" if self.opds_prefix == "/" else self.opds_prefix
         return f"{base}/{suffix.lstrip('/')}"
 
 
