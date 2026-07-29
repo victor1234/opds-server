@@ -54,13 +54,15 @@ async def get_cover(book_id: int, config: Config = Depends(get_config)) -> FileR
 
 
 @router.get("/opensearch.xml")
-def get_opensearch() -> Response:
-    osd = """<?xml version="1.0" encoding="UTF-8"?>
+def get_opensearch(config: Config = Depends(get_config)) -> Response:
+    """Return an OpenSearch document using the configured catalog path."""
+    search_template = config.opds_path("search")
+    osd = f"""<?xml version="1.0" encoding="UTF-8"?>
     <OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
       <ShortName>OPDS Search</ShortName>
       <Description>Search books in the OPDS catalog</Description>
       <Url type="application/atom+xml;profile=opds-catalog;kind=acquisition"
-           template="/opds/search?q={searchTerms}"/>
+           template="{search_template}?q={{searchTerms}}"/>
     </OpenSearchDescription>
     """
     return Response(
@@ -72,13 +74,13 @@ def get_opensearch() -> Response:
 async def search(
     q: str, page: int = Query(1, ge=1), config: Config = Depends(get_config)
 ) -> Response:
-    xml = await generate_book_search_feed("/opds/search", q, page, config)
+    xml = await generate_book_search_feed(q, page, config)
     return Response(content=xml, media_type="application/atom+xml; charset=utf-8")
 
 
 @router.get("/", response_class=Response)
-def root_main():
-    xml = generate_root_feed("/opds")
+def root_main(config: Config = Depends(get_config)):
+    xml = generate_root_feed(config)
     return Response(content=xml, media_type="application/atom+xml; charset=utf-8")
 
 
@@ -86,7 +88,7 @@ def root_main():
 async def root_by_newest(
     page: int = Query(1, ge=1), config: Config = Depends(get_config)
 ):
-    xml = await generate_newest_feed("/opds/by-newest", page, config)
+    xml = await generate_newest_feed(page, config)
     return Response(content=xml, media_type="application/atom+xml; charset=utf-8")
 
 
@@ -94,7 +96,7 @@ async def root_by_newest(
 async def root_by_title(
     page: int = Query(1, ge=1), config: Config = Depends(get_config)
 ):
-    xml = await generate_title_feed("/opds/by-title", page, config)
+    xml = await generate_title_feed(page, config)
     return Response(content=xml, media_type="application/atom+xml; charset=utf-8")
 
 
@@ -102,7 +104,7 @@ async def root_by_title(
 async def root_by_author(
     page: int = Query(1, ge=1), config: Config = Depends(get_config)
 ):
-    xml = await generate_by_author_feed("/opds/by-author", page, config)
+    xml = await generate_by_author_feed(page, config)
     return Response(content=xml, media_type="application/atom+xml; charset=utf-8")
 
 
@@ -110,7 +112,5 @@ async def root_by_author(
 async def get_author_books(
     author_id: int, page: int = Query(1, ge=1), config: Config = Depends(get_config)
 ):
-    xml = await generate_author_feed(
-        f"/opds/author/{author_id}", author_id, page, config
-    )
+    xml = await generate_author_feed(author_id, page, config)
     return Response(content=xml, media_type="application/atom+xml; charset=utf-8")

@@ -85,20 +85,24 @@ def q(params: dict) -> str:
 def nav_link(rel: str, endpoint: str, page: int, params: dict, kind: str) -> str:
     """Uniform OPDS navigation link with profile type."""
     return (
-        f'        <link rel="{rel}" href="{endpoint}?page={page}{q(params)}" '
+        f'        <link rel="{rel}" href="{xml_text(endpoint)}?page={page}{q(params)}" '
         f'type="application/atom+xml;profile=opds-catalog;kind={kind}"/>'
     )
 
 
-def get_search_link() -> str:
-    return '        <link type="application/opensearchdescription+xml" rel="search" title="Search" href="/opds/opensearch.xml"/>'
+def get_search_link(config: Config) -> str:
+    """Build the OpenSearch discovery link for the configured catalog."""
+    href = xml_text(config.opds_path("opensearch.xml"))
+    return f'        <link type="application/opensearchdescription+xml" rel="search" title="Search" href="{href}"/>'
 
 
-def get_start_link() -> str:
-    return '        <link rel="start" href="/opds" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>'
+def get_start_link(config: Config) -> str:
+    """Build the start link for the configured catalog."""
+    href = xml_text(config.opds_path())
+    return f'        <link rel="start" href="{href}" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>'
 
 
-def get_author_xml(author: dict) -> str:
+def get_author_xml(author: dict, config: Config) -> str:
     if author:
         name = xml_text(author["name"])
         aid = xml_text(author.get("id", ""))
@@ -107,7 +111,8 @@ def get_author_xml(author: dict) -> str:
             f"{16 * ' '}<name>{name}</name>",
         ]
         if aid:
-            parts.append(f"{16 * ' '}<uri>/opds/author/{aid}</uri>")
+            uri = xml_text(config.opds_path(f"author/{aid}"))
+            parts.append(f"{16 * ' '}<uri>{uri}</uri>")
         parts.append(f"{12 * ' '}</author>")
 
         return "\n".join(parts)
@@ -115,7 +120,7 @@ def get_author_xml(author: dict) -> str:
         return ""
 
 
-def get_files_xml(book_id: int, files: list[dict]) -> str:
+def get_files_xml(book_id: int, files: list[dict], config: Config) -> str:
     if not files:
         return ""
 
@@ -123,15 +128,15 @@ def get_files_xml(book_id: int, files: list[dict]) -> str:
     for file in files:
         file_format = file["format"].lower()
         files_xml += f"""
-            <link rel="http://opds-spec.org/acquisition" type="{get_book_mime_type(file_format)}" href="/opds/book/{book_id}/file/{file_format}"/>"""
+            <link rel="http://opds-spec.org/acquisition" type="{get_book_mime_type(file_format)}" href="{xml_text(config.opds_path(f"book/{book_id}/file/{file_format}"))}"/>"""
     return files_xml
 
 
-def create_feed_links(feed: Feed) -> str:
+def create_feed_links(feed: Feed, config: Config) -> str:
     parts = [
         feed.links,
-        get_start_link(),
-        get_search_link(),
+        get_start_link(config),
+        get_search_link(config),
         nav_link("self", feed.endpoint, feed.page, feed.parameters, feed.kind),
         nav_link("first", feed.endpoint, 1, feed.parameters, feed.kind),
     ]
@@ -149,16 +154,16 @@ def create_feed_links(feed: Feed) -> str:
     return "\n".join(parts)
 
 
-def generate_feed(feed: Feed) -> str:
+def generate_feed(feed: Feed, config: Config) -> str:
     entries = ""
     for item in feed.items:
         entries += f"""
         <entry>
             <title>{xml_text(item.title)}</title>
             <id>{xml_text(item.id)}</id>
-            {get_author_xml(item.author)}
+            {get_author_xml(item.author, config)}
             <updated>{fmt_dt(item.updated_time)}</updated>
-            {get_files_xml(item.db_id, item.files)}
+            {get_files_xml(item.db_id, item.files, config)}
             {item.links}
             <summary type="text">{xml_text(item.summary)}</summary>
         </entry>
@@ -172,19 +177,19 @@ def generate_feed(feed: Feed) -> str:
         <author>
             <name>Calibre OPDS Server</name>
         </author>
-        {create_feed_links(feed)}
+        {create_feed_links(feed, config)}
         {entries}
     </feed>"""
 
     return feed_xml
 
 
-def generate_root_feed(endpoint: str) -> str:
+def generate_root_feed(config: Config) -> str:
     feed = Feed(
         title="Calibre OPDS Catalog",
         id="urn:opds-server:main",
         updated_time=datetime.now(timezone.utc),
-        endpoint=endpoint,
+        endpoint=config.opds_path(),
         kind="navigation",
     )
 
@@ -193,75 +198,75 @@ def generate_root_feed(endpoint: str) -> str:
             title="By Newest",
             id="urn:opds-server:by-newest:",
             updated_time=feed.updated_time,
-            links='<link rel="http://opds-spec.org/sort/new" href="/opds/by-newest" type="application/atom+xml;profile=opds-catalog;kind=acquisition"/>',
+            links=f'<link rel="http://opds-spec.org/sort/new" href="{xml_text(config.opds_path("by-newest"))}" type="application/atom+xml;profile=opds-catalog;kind=acquisition"/>',
             summary="Books sorted by date",
         ),
         Item(
             title="By Title",
             id="urn:opds-server:by-title:",
             updated_time=feed.updated_time,
-            links='<link rel="subsection" href="/opds/by-title" type="application/atom+xml;profile=opds-catalog;kind=acquisition"/>',
+            links=f'<link rel="subsection" href="{xml_text(config.opds_path("by-title"))}" type="application/atom+xml;profile=opds-catalog;kind=acquisition"/>',
             summary="Books sorted by title",
         ),
         Item(
             title="By Author",
             id="urn:opds-server:by-author:",
             updated_time=feed.updated_time,
-            links='<link rel="subsection" href="/opds/by-author" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>',
+            links=f'<link rel="subsection" href="{xml_text(config.opds_path("by-author"))}" type="application/atom+xml;profile=opds-catalog;kind=navigation"/>',
             summary="Books sorted by author",
         ),
     ]
 
     feed.items = items
 
-    return generate_feed(feed)
+    return generate_feed(feed, config)
 
 
-async def generate_newest_feed(endpoint: str, page: int, config: Config) -> str:
+async def generate_newest_feed(page: int, config: Config) -> str:
     books, has_previous, has_next = await get_books(
         sort="by_newest", page=page, config=config
     )
 
-    items = items_from_books(books)
+    items = items_from_books(books, config)
 
     feed = Feed(
         title="Calibre OPDS Catalog",
         id="urn:opds-server:by-newest",
         updated_time=datetime.now(timezone.utc),
         items=items,
-        endpoint=endpoint,
+        endpoint=config.opds_path("by-newest"),
         kind="acquisition",
         page=page,
         next=has_next,
         previous=has_previous,
     )
 
-    return generate_feed(feed)
+    return generate_feed(feed, config)
 
 
-async def generate_title_feed(endpoint: str, page: int, config: Config) -> str:
+async def generate_title_feed(page: int, config: Config) -> str:
     books, has_previous, has_next = await get_books(
         sort="by_title", page=page, config=config
     )
 
-    items = items_from_books(books)
+    items = items_from_books(books, config)
 
     feed = Feed(
         title="Calibre OPDS Catalog",
         id="urn:opds-server:by-title",
         updated_time=datetime.now(timezone.utc),
         items=items,
-        endpoint=endpoint,
+        endpoint=config.opds_path("by-title"),
         kind="acquisition",
         page=page,
         next=has_next,
         previous=has_previous,
     )
 
-    return generate_feed(feed)
+    return generate_feed(feed, config)
 
 
-async def generate_by_author_feed(endpoint: str, page, config: Config) -> str:
+async def generate_by_author_feed(page: int, config: Config) -> str:
     """Generate an OPDS feed listing authors."""
     authors, has_previous, has_next = await get_authors(page, config)
 
@@ -277,7 +282,7 @@ async def generate_by_author_feed(endpoint: str, page, config: Config) -> str:
                 updated_time=updated_time,
                 links=(
                     f'<link type="application/atom+xml;profile=opds-catalog;kind=acquisition" '
-                    f'href="/opds/author/{author_id}"/>'
+                    f'href="{xml_text(config.opds_path(f"author/{author_id}"))}"/>'
                 ),
             )
         )
@@ -287,24 +292,22 @@ async def generate_by_author_feed(endpoint: str, page, config: Config) -> str:
         id="urn:opds-server:by-author",
         updated_time=updated_time,
         items=items,
-        endpoint=endpoint,
+        endpoint=config.opds_path("by-author"),
         kind="navigation",
         page=page,
         previous=has_previous,
         next=has_next,
     )
 
-    return generate_feed(feed_obj)
+    return generate_feed(feed_obj, config)
 
 
-async def generate_author_feed(
-    endpoint: str, author_id: int, page: int, config: Config
-) -> str:
+async def generate_author_feed(author_id: int, page: int, config: Config) -> str:
     books, has_previous, has_next = await get_author_books(
         author_id, page=page, config=config
     )
 
-    items = items_from_books(books)
+    items = items_from_books(books, config)
 
     author_name = await get_author_name(author_id, config)
 
@@ -313,16 +316,16 @@ async def generate_author_feed(
         id=f"urn:opds-server:author:{author_id}",
         updated_time=datetime.now(timezone.utc),
         items=items,
-        endpoint=endpoint,
+        endpoint=config.opds_path(f"author/{author_id}"),
         kind="acquisition",
         page=page,
         next=has_next,
         previous=has_previous,
     )
-    return generate_feed(feed)
+    return generate_feed(feed, config)
 
 
-def items_from_books(books: dict[int, dict]) -> list[Item]:
+def items_from_books(books: dict[int, dict], config: Config) -> list[Item]:
     """Convert database records to entries, including incomplete metadata."""
     items = []
     for book_id, book in books.items():
@@ -335,31 +338,29 @@ def items_from_books(books: dict[int, dict]) -> list[Item]:
                 # Calibre libraries can contain books without an author link.
                 author=book["authors"][0] if book["authors"] else {},
                 files=book["files"],
-                links=f"""<link type="image/jpeg" href="/opds/book/{book_id}/cover" rel="http://opds-spec.org/image"/>""",
+                links=f"""<link type="image/jpeg" href="{xml_text(config.opds_path(f"book/{book_id}/cover"))}" rel="http://opds-spec.org/image"/>""",
             )
         )
     return items
 
 
-async def generate_book_search_feed(
-    endpoint: str, query: str, page: int, config: Config
-) -> str:
+async def generate_book_search_feed(query: str, page: int, config: Config) -> str:
     books, has_previous, has_next = await search_books(
         query,
         page,
         config=config,
     )
-    items = items_from_books(books)
+    items = items_from_books(books, config)
     feed = Feed(
         title=f"Search results for '{query}'",
         id=f"urn:opds-server:search:{query}",
         updated_time=datetime.now(timezone.utc),
         items=items,
-        endpoint=endpoint,
+        endpoint=config.opds_path("search"),
         kind="acquisition",
         page=page,
         next=has_next,
         previous=has_previous,
         parameters={"q": query},
     )
-    return generate_feed(feed)
+    return generate_feed(feed, config)

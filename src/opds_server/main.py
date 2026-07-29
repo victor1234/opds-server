@@ -26,14 +26,16 @@ def create_app(config: Config | None = None) -> FastAPI:
 
     app = FastAPI(title=config.app_name, version=package_version)
 
-    # Include API routers
-    app.include_router(catalog.router, prefix=config.opds_prefix, tags=["opds"])
+    # FastAPI represents a root-mounted router with an empty prefix.
+    router_prefix = "" if config.opds_prefix == "/" else config.opds_prefix
+    app.include_router(catalog.router, prefix=router_prefix, tags=["opds"])
 
-    # Service endpoints
-    @app.get("/", include_in_schema=False)
-    def root_redirect():
-        """Redirect root URL to the OPDS feed."""
-        return RedirectResponse(url=config.opds_prefix, status_code=307)
+    if config.opds_prefix != "/":
+
+        @app.get("/", include_in_schema=False)
+        def root_redirect():
+            """Redirect root URL to the configured OPDS feed."""
+            return RedirectResponse(url=config.opds_prefix, status_code=307)
 
     @app.get("/healthz", tags=["_service"], include_in_schema=False)
     def healthz() -> PlainTextResponse:

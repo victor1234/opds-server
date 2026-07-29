@@ -84,7 +84,10 @@ def client_factory(tmp_path: Path) -> Callable[..., tuple[Path, TestClient]]:
     sequence = 0
 
     def make_client(
-        *, populated: bool = True, page_size: int = 2
+        *,
+        populated: bool = True,
+        page_size: int = 2,
+        opds_prefix: str = "/opds",
     ) -> tuple[Path, TestClient]:
         nonlocal sequence
         sequence += 1
@@ -97,7 +100,11 @@ def client_factory(tmp_path: Path) -> Callable[..., tuple[Path, TestClient]]:
         connection.commit()
         connection.close()
 
-        config = Config(calibre_library_path=library, page_size=page_size)
+        config = Config(
+            calibre_library_path=library,
+            page_size=page_size,
+            opds_prefix=opds_prefix,
+        )
         app = create_app(config)
         app.dependency_overrides[get_config] = lambda: config
         return library, TestClient(app, raise_server_exceptions=False)

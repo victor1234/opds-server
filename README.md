@@ -21,10 +21,10 @@
 
 The server can be configured using environment variables
 
-| Variable               | Default  | Description                                      |
-|------------------------|----------|--------------------------------------------------|
-| `PAGE_SIZE`            | `30`     | Number of items (books, authors) shown per page in OPDS feeds. |
-
+| Variable | Default | Description |
+|---|---|---|
+| `PAGE_SIZE` | `30` | Number of books or authors shown on each OPDS feed page. |
+| `OPDS_PREFIX` | `/opds` | URL path where the catalog is mounted. A leading slash is optional; trailing slashes are removed. |
 
 ## Installation / Run
 
