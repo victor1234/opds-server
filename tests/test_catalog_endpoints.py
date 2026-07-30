@@ -115,6 +115,60 @@ def test_title_feed_paginates_at_boundaries(catalog_client):
     assert not links(beyond, "previous") and not links(beyond, "next")
 
 
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/opds/search?q=book&page=10001",
+        "/opds/by-newest?page=10001",
+        "/opds/by-title?page=10001",
+        "/opds/by-author?page=10001",
+        "/opds/author/1?page=10001",
+    ],
+)
+def test_paginated_feeds_reject_pages_above_the_public_limit(catalog_client, path):
+    """Reject pathological offsets before querying any paginated feed."""
+    _, client = catalog_client
+
+    assert client.get(path).status_code == 422
+
+
+def test_maximum_page_returns_a_valid_empty_feed(catalog_client):
+    """Accept the inclusive page limit and preserve empty-feed behavior."""
+    _, client = catalog_client
+    feed = parse_atom(client.get("/opds/by-title?page=10000"))
+
+    assert not entries(feed)
+    assert not links(feed, "previous") and not links(feed, "next")
+
+
+def test_offset_pagination_reads_live_changes_between_requests(client_factory):
+    """Read the current dataset while accepting offset traversal duplicates."""
+    library, client = client_factory(page_size=2)
+    first = parse_atom(client.get("/opds/by-title?page=1"))
+    first_titles = [
+        entry.findtext("atom:title", namespaces=NS) for entry in entries(first)
+    ]
+
+    with sqlite3.connect(library / "metadata.db") as connection:
+        # Insert before the first page so the second offset moves over a book
+        # that the client already received.
+        connection.execute(
+            """
+            INSERT INTO books (id, title, sort, last_modified, path)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (5, "New First Book", "000 First", "2024-01-05 12:00:00+00:00", "New"),
+        )
+
+    second = parse_atom(client.get("/opds/by-title?page=2"))
+    second_titles = [
+        entry.findtext("atom:title", namespaces=NS) for entry in entries(second)
+    ]
+
+    assert first_titles == ["100% Unicode книга", "A <Practical> Book"]
+    assert second_titles == ["A <Practical> Book", "Authorless"]
+
+
 def test_catalog_ordering_uses_calibre_sort_fields_and_id_tie_breakers(
     client_factory,
 ):
