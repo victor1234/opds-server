@@ -2,7 +2,7 @@ import hashlib
 import logging
 from collections import defaultdict
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import AsyncIterator
 
@@ -12,6 +12,23 @@ from fastapi import HTTPException
 from opds_server.core.config import Config
 
 log = logging.getLogger(__name__)
+
+CALIBRE_DATETIME_FALLBACK = datetime(1970, 1, 1, tzinfo=UTC)
+
+
+def parse_calibre_datetime(value: object) -> datetime:
+    """Parse a Calibre timestamp, falling back to a stable Atom-safe value."""
+    if not isinstance(value, str) or not value.strip():
+        return CALIBRE_DATETIME_FALLBACK
+
+    try:
+        parsed = datetime.fromisoformat(value.strip())
+    except ValueError:
+        return CALIBRE_DATETIME_FALLBACK
+
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=UTC)
+    return parsed.astimezone(UTC)
 
 
 def _resolve_library_file(config: Config, *components: str) -> Path:
@@ -192,7 +209,7 @@ async def add_authors(books: list, config: Config) -> dict[int, dict]:
     for book_id, title, last_modified in books:
         result[book_id] = {
             "title": title,
-            "last_modified": datetime.fromisoformat(last_modified),
+            "last_modified": parse_calibre_datetime(last_modified),
             "authors": authors_by_book[book_id],
         }
 

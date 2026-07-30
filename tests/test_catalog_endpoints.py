@@ -1,7 +1,8 @@
 """Database-backed integration tests for the public OPDS and service
 endpoints."""
 
-from datetime import datetime
+import sqlite3
+from datetime import UTC, datetime
 from urllib.parse import parse_qs, urlsplit
 from xml.etree import ElementTree
 
@@ -9,6 +10,7 @@ import pytest
 from pydantic import ValidationError
 
 from opds_server.core.config import Config
+from opds_server.db.access import parse_calibre_datetime
 
 ATOM = "http://www.w3.org/2005/Atom"
 OPENSEARCH = "http://a9.com/-/spec/opensearch/1.1/"
@@ -66,6 +68,37 @@ def test_book_feeds_include_metadata_and_valid_acquisition_links(
         assert href.startswith("/opds/")
         if link.get("rel") == "http://opds-spec.org/acquisition":
             assert client.get(href).status_code == 200
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        (None, datetime(1970, 1, 1, tzinfo=UTC)),
+        ("", datetime(1970, 1, 1, tzinfo=UTC)),
+        ("invalid", datetime(1970, 1, 1, tzinfo=UTC)),
+        ("2024-01-04 12:00:00", datetime(2024, 1, 4, 12, tzinfo=UTC)),
+        ("2024-01-04T14:00:00+02:00", datetime(2024, 1, 4, 12, tzinfo=UTC)),
+    ],
+)
+def test_calibre_datetime_parsing_is_stable(value, expected):
+    """Normalize valid dates and use a stable fallback for invalid metadata."""
+    assert parse_calibre_datetime(value) == expected
+
+
+@pytest.mark.parametrize("last_modified", [None, "", "not-a-date"])
+def test_books_with_invalid_dates_remain_in_feeds(catalog_client, last_modified):
+    """Keep usable books visible when their Calibre timestamp is invalid."""
+    library, client = catalog_client
+    with sqlite3.connect(library / "metadata.db") as connection:
+        connection.execute(
+            "UPDATE books SET last_modified = ? WHERE id = 1", (last_modified,)
+        )
+
+    feed = parse_atom(client.get("/opds/search", params={"q": "<Practical>"}))
+    entry = entries(feed)[0]
+
+    assert entry.findtext("atom:title", namespaces=NS) == "A <Practical> Book"
+    assert entry.findtext("atom:updated", namespaces=NS) == "1970-01-01T00:00:00Z"
 
 
 def test_title_feed_paginates_at_boundaries(catalog_client):
