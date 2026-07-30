@@ -47,14 +47,14 @@ show that changing the page-number interface would provide a material benefit.
 ```bash
 docker run --rm -p 9000:8000 \
   -v /path_to_calibre_directory:/app/calibre:ro \
-  ghcr.io/victor1234/opds-server:0.1.2
+  ghcr.io/victor1234/opds-server:0.1.3
 ```
 
 ### Docker Compose
 ```yaml
 services:
   opds:
-    image: ghcr.io/victor1234/opds-server:0.1.2
+    image: ghcr.io/victor1234/opds-server:0.1.3
     ports:
       - "9000:8000"
     volumes:
