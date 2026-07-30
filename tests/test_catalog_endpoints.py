@@ -112,7 +112,16 @@ def test_title_feed_paginates_at_boundaries(catalog_client):
     assert len(entries(second)) == 2
     assert links(second, "previous") and not links(second, "next")
     assert not entries(beyond)
-    assert links(beyond, "previous") and not links(beyond, "next")
+    assert not links(beyond, "previous") and not links(beyond, "next")
+
+
+def test_author_feed_omits_navigation_beyond_last_page(catalog_client):
+    """Omit pagination links when an author page contains no entries."""
+    _, client = catalog_client
+    beyond = parse_atom(client.get("/opds/by-author?page=2"))
+
+    assert not entries(beyond)
+    assert not links(beyond, "previous") and not links(beyond, "next")
 
 
 def test_author_navigation_detail_and_authorless_books(catalog_client):

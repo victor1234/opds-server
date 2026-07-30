@@ -269,7 +269,7 @@ async def select_books(
             books = await cursor.fetchall()
 
     has_next = len(books) > limit
-    has_previous = offset > 0
+    has_previous = offset > 0 and bool(books)
 
     books_dict = await add_authors(books[:limit], config)
     await add_files(books_dict, config)
@@ -317,7 +317,7 @@ async def get_authors(page: int, config: Config) -> tuple[list, bool, bool]:
             authors = await cursor.fetchall()
 
     has_next = len(authors) > limit
-    has_previous = offset > 0
+    has_previous = offset > 0 and bool(authors)
 
     return authors[:limit], has_previous, has_next
 
