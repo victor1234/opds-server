@@ -45,7 +45,9 @@ def get_db_path(config: Config) -> Path:
         return _resolve_library_file(config, "metadata.db")
     except (OSError, ValueError) as exc:
         log.debug("Calibre DB validation failed: %s", type(exc).__name__)
-        raise HTTPException(status_code=500, detail="Calibre DB not found") from None
+        raise HTTPException(
+            status_code=503, detail="Calibre database unavailable"
+        ) from None
 
 
 def get_db_uri(config: Config) -> str:
@@ -54,14 +56,22 @@ def get_db_uri(config: Config) -> str:
 
 @asynccontextmanager
 async def connect_db(config: Config) -> AsyncIterator[aiosqlite.Connection]:
-    conn = await aiosqlite.connect(
-        get_db_uri(config),
-        uri=True,
-    )
     try:
-        yield conn
-    finally:
-        await conn.close()
+        conn = await aiosqlite.connect(
+            get_db_uri(config),
+            uri=True,
+        )
+        try:
+            yield conn
+        finally:
+            await conn.close()
+    except aiosqlite.Error as exc:
+        # Database diagnostics belong in server logs; clients receive a stable,
+        # non-sensitive response for connection, query, and close failures.
+        log.warning("Calibre database unavailable: %s", type(exc).__name__)
+        raise HTTPException(
+            status_code=503, detail="Calibre database unavailable"
+        ) from None
 
 
 async def get_book_title(book_id: int, config: Config) -> str:
