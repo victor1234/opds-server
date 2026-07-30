@@ -1,4 +1,6 @@
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from importlib.metadata import PackageNotFoundError, version
 
 from fastapi import FastAPI, HTTPException
@@ -6,9 +8,7 @@ from starlette.responses import PlainTextResponse, RedirectResponse
 
 from opds_server.api import catalog
 from opds_server.core.config import Config, get_config
-from opds_server.db.access import connect_db
-
-config = Config()
+from opds_server.db.access import check_library_availability
 
 
 def _get_version(pkg: str) -> str:
@@ -19,23 +19,47 @@ def _get_version(pkg: str) -> str:
 
 
 def create_app(config: Config | None = None) -> FastAPI:
-    config = config or get_config()
+    """Create an application using one consistent configuration instance."""
+    app_config = config or get_config()
+    log = logging.getLogger("uvicorn.error")
 
-    # Get application version
-    package_version = _get_version(config.package_name)
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        """Check initial readiness without making library access liveness."""
+        try:
+            await check_library_availability(app_config)
+        except HTTPException as exc:
+            if exc.status_code != 503:
+                raise
+            log.warning("Starting with Calibre database unavailable")
+        yield
 
-    app = FastAPI(title=config.app_name, version=package_version)
+    package_version = _get_version(app_config.package_name)
+    app = FastAPI(
+        title=app_config.app_name,
+        version=package_version,
+        lifespan=lifespan,
+    )
+
+    if config is not None:
+
+        def get_supplied_config() -> Config:
+            """Provide the configuration supplied to the application
+            factory."""
+            return app_config
+
+        app.dependency_overrides[get_config] = get_supplied_config
 
     # FastAPI represents a root-mounted router with an empty prefix.
-    router_prefix = "" if config.opds_prefix == "/" else config.opds_prefix
+    router_prefix = "" if app_config.opds_prefix == "/" else app_config.opds_prefix
     app.include_router(catalog.router, prefix=router_prefix, tags=["opds"])
 
-    if config.opds_prefix != "/":
+    if app_config.opds_prefix != "/":
 
         @app.get("/", include_in_schema=False)
         def root_redirect():
             """Redirect root URL to the configured OPDS feed."""
-            return RedirectResponse(url=config.opds_prefix, status_code=307)
+            return RedirectResponse(url=app_config.opds_prefix, status_code=307)
 
     @app.get("/healthz", tags=["_service"], include_in_schema=False)
     def healthz() -> PlainTextResponse:
@@ -45,12 +69,8 @@ def create_app(config: Config | None = None) -> FastAPI:
     @app.get("/ready", tags=["_service"], include_in_schema=False)
     async def ready() -> PlainTextResponse:
         """Readiness probe endpoint."""
-        async with connect_db(config) as conn:
-            await conn.execute("SELECT 1")
+        await check_library_availability(app_config)
         return PlainTextResponse("ok")
-
-    # Set up logging
-    log = logging.getLogger("uvicorn.error")
 
     @app.exception_handler(HTTPException)
     def http_exception_handler(_, exc: HTTPException):

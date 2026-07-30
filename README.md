@@ -23,8 +23,14 @@ The server can be configured using environment variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `PAGE_SIZE` | `30` | Number of books or authors shown on each OPDS feed page. |
+| `CALIBRE_LIBRARY_PATH` | `/books` | Absolute path to the mounted Calibre library. |
+| `PAGE_SIZE` | `30` | Number of books or authors shown on each OPDS feed page, from 1 through 100. |
 | `OPDS_PREFIX` | `/opds` | URL path where the catalog is mounted. A leading slash is optional; trailing slashes are removed. |
+
+The server starts when the configured library is temporarily unavailable so
+that `/healthz` can continue to report process liveness. `/ready` checks the
+library on every request and returns `503 Calibre database unavailable` until
+`metadata.db` can be accessed.
 
 ## Installation / Run
 

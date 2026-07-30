@@ -73,6 +73,7 @@ def get_db_uri(config: Config) -> str:
 
 @asynccontextmanager
 async def connect_db(config: Config) -> AsyncIterator[aiosqlite.Connection]:
+    """Open the configured Calibre database read-only."""
     try:
         conn = await aiosqlite.connect(
             get_db_uri(config),
@@ -89,6 +90,12 @@ async def connect_db(config: Config) -> AsyncIterator[aiosqlite.Connection]:
         raise HTTPException(
             status_code=503, detail="Calibre database unavailable"
         ) from None
+
+
+async def check_library_availability(config: Config) -> None:
+    """Verify that the configured Calibre database can answer a query."""
+    async with connect_db(config) as conn:
+        await conn.execute("SELECT 1")
 
 
 async def get_book_title(book_id: int, config: Config) -> str:

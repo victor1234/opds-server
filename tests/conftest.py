@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from opds_server.core.config import Config, get_config
+from opds_server.core.config import Config
 from opds_server.main import create_app
 
 CALIBRE_SCHEMA = """
@@ -106,7 +106,6 @@ def client_factory(tmp_path: Path) -> Callable[..., tuple[Path, TestClient]]:
             opds_prefix=opds_prefix,
         )
         app = create_app(config)
-        app.dependency_overrides[get_config] = lambda: config
         return library, TestClient(app, raise_server_exceptions=False)
 
     return make_client
