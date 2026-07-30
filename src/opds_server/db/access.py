@@ -95,7 +95,10 @@ async def connect_db(config: Config) -> AsyncIterator[aiosqlite.Connection]:
 async def check_library_availability(config: Config) -> None:
     """Verify that the configured Calibre database can answer a query."""
     async with connect_db(config) as conn:
-        await conn.execute("SELECT 1")
+        # Reading SQLite metadata forces the database file to be parsed. A
+        # constant-only query can succeed without detecting a malformed file.
+        async with conn.execute("SELECT name FROM sqlite_master LIMIT 1") as cursor:
+            await cursor.fetchone()
 
 
 async def get_book_title(book_id: int, config: Config) -> str:
