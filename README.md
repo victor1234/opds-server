@@ -32,6 +32,14 @@ that `/healthz` can continue to report process liveness. `/ready` checks the
 library on every request and returns `503 Calibre database unavailable` until
 `metadata.db` can be accessed.
 
+## Pagination
+
+Catalog feeds use page numbers from 1 through 10,000 and offset pagination.
+Each request reads the current Calibre database, so books added or removed
+between page requests can cause entries to be repeated or skipped during a
+traversal. Keyset pagination is deferred unless benchmarks on large libraries
+show that changing the page-number interface would provide a material benefit.
+
 ## Installation / Run
 
 ### Docker

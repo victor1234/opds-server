@@ -1,5 +1,6 @@
 import re
 import unicodedata
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Response
 from fastapi.responses import FileResponse
@@ -17,6 +18,10 @@ from opds_server.services.opds import (
 )
 
 router = APIRouter()
+
+# Keep offset scans within a documented operational bound for every feed.
+MAX_PAGE_NUMBER = 10_000
+PageNumber = Annotated[int, Query(ge=1, le=MAX_PAGE_NUMBER)]
 
 
 def title_to_filename(title: str, extension: str) -> str:
@@ -72,7 +77,7 @@ def get_opensearch(config: Config = Depends(get_config)) -> Response:
 
 @router.get("/search")
 async def search(
-    q: str, page: int = Query(1, ge=1), config: Config = Depends(get_config)
+    q: str, page: PageNumber = 1, config: Config = Depends(get_config)
 ) -> Response:
     xml = await generate_book_search_feed(q, page, config)
     return Response(content=xml, media_type="application/atom+xml; charset=utf-8")
@@ -85,32 +90,28 @@ def root_main(config: Config = Depends(get_config)):
 
 
 @router.get("/by-newest", response_class=Response)
-async def root_by_newest(
-    page: int = Query(1, ge=1), config: Config = Depends(get_config)
-):
+async def root_by_newest(page: PageNumber = 1, config: Config = Depends(get_config)):
     xml = await generate_newest_feed(page, config)
     return Response(content=xml, media_type="application/atom+xml; charset=utf-8")
 
 
 @router.get("/by-title", response_class=Response)
-async def root_by_title(
-    page: int = Query(1, ge=1), config: Config = Depends(get_config)
-):
+async def root_by_title(page: PageNumber = 1, config: Config = Depends(get_config)):
     xml = await generate_title_feed(page, config)
     return Response(content=xml, media_type="application/atom+xml; charset=utf-8")
 
 
 @router.get("/by-author")
-async def root_by_author(
-    page: int = Query(1, ge=1), config: Config = Depends(get_config)
-):
+async def root_by_author(page: PageNumber = 1, config: Config = Depends(get_config)):
     xml = await generate_by_author_feed(page, config)
     return Response(content=xml, media_type="application/atom+xml; charset=utf-8")
 
 
 @router.get("/author/{author_id}")
 async def get_author_books(
-    author_id: int, page: int = Query(1, ge=1), config: Config = Depends(get_config)
+    author_id: int,
+    page: PageNumber = 1,
+    config: Config = Depends(get_config),
 ):
     xml = await generate_author_feed(author_id, page, config)
     return Response(content=xml, media_type="application/atom+xml; charset=utf-8")
