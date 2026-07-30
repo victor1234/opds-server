@@ -282,8 +282,9 @@ async def get_books(
     page: int,
     config: Config,
 ) -> tuple[dict[int, dict], bool, bool]:
+    """Return a deterministically ordered page of books."""
     if sort == "by_title":
-        sort_field = "title"
+        sort_field = "sort"
     elif sort == "by_newest":
         sort_field = "last_modified"
     else:
@@ -292,7 +293,7 @@ async def get_books(
     sql = f"""
           SELECT id, title, last_modified
           FROM books
-          ORDER BY {sort_field}
+          ORDER BY {sort_field}, id
           """
 
     return await select_books(sql, page, config)
@@ -305,7 +306,7 @@ async def get_authors(page: int, config: Config) -> tuple[list, bool, bool]:
     sql = """
           SELECT id, name
           FROM authors
-          ORDER BY sort
+          ORDER BY sort, id
           """
 
     limit = config.page_size
@@ -332,7 +333,7 @@ async def get_author_books(
           FROM books b
                    JOIN books_authors_link bal ON b.id = bal.book
           WHERE bal.author = ?
-          ORDER BY b.sort
+          ORDER BY b.sort, b.id
           """
 
     return await select_books(sql, page, config, [author_id])
@@ -347,7 +348,7 @@ async def search_books(
           SELECT id, title, last_modified
           FROM books
           WHERE title LIKE ? COLLATE NOCASE
-          ORDER BY sort
+          ORDER BY sort, id
           """
 
     return await select_books(sql, page, config, [f"%{query}%"])
