@@ -11,6 +11,7 @@ permissions:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
+  POETRY_VIRTUALENVS_IN_PROJECT: "true"
 concurrency:
   group: docker-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
@@ -28,6 +29,16 @@ jobs:
         run: python -m pip install poetry==2.4.1 ruff==0.12.10
       - name: Install locked dependencies
         run: poetry install --no-interaction --no-ansi
+      # High and critical Python dependency findings block the image build,
+      # including findings for which no fixed version is available.
+      - name: Audit Python dependencies
+        uses: anchore/scan-action@v7
+        with:
+          path: .venv
+          fail-build: true
+          severity-cutoff: high
+          only-fixed: false
+          output-format: table
       - name: Validate package metadata and lock file
         run: poetry check --lock
       - name: Check lint
@@ -67,6 +78,25 @@ jobs:
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.created=${{ steps.ts.outputs.created }}
+      - name: Build image for vulnerability scanning
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64
+          load: true
+          tags: local/opds-server:scan
+          cache-from: type=gha
+      # High and critical findings block publication even when no fixed package
+      # version is available.
+      - name: Scan final image
+        uses: anchore/scan-action@v7
+        with:
+          image: local/opds-server:scan
+          fail-build: true
+          severity-cutoff: high
+          only-fixed: false
+          output-format: table
       - name: Log in to GitHub Container Registry
         if: github.event_name == 'push'
         uses: docker/login-action@v3
