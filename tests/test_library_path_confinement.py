@@ -3,6 +3,7 @@
 import sqlite3
 from pathlib import Path
 
+import aiosqlite
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
@@ -10,6 +11,14 @@ from fastapi.testclient import TestClient
 from opds_server.core.config import Config, get_config
 from opds_server.db.access import get_db_path
 from opds_server.main import create_app
+
+
+def make_client(library: Path) -> TestClient:
+    """Create an isolated client configured to use the supplied library."""
+    config = Config(calibre_library_path=library)
+    app = create_app(config)
+    app.dependency_overrides[get_config] = lambda: config
+    return TestClient(app, raise_server_exceptions=False)
 
 
 def make_library(tmp_path: Path, folder: str = "Author/Book", name: str = "Novel"):
@@ -28,10 +37,7 @@ def make_library(tmp_path: Path, folder: str = "Author/Book", name: str = "Novel
     connection.commit()
     connection.close()
 
-    config = Config(calibre_library_path=library)
-    app = create_app(config)
-    app.dependency_overrides[get_config] = lambda: config
-    return library, TestClient(app)
+    return library, make_client(library)
 
 
 def test_nested_book_and_cover_are_served(tmp_path: Path):
@@ -127,6 +133,46 @@ def test_invalid_database_error_does_not_leak_paths(tmp_path: Path, db_kind: str
     with pytest.raises(HTTPException) as caught:
         get_db_path(Config(calibre_library_path=library))
 
-    assert caught.value.status_code == 500
-    assert caught.value.detail == "Calibre DB not found"
+    assert caught.value.status_code == 503
+    assert caught.value.detail == "Calibre database unavailable"
     assert str(tmp_path) not in caught.value.detail
+
+
+@pytest.mark.parametrize("endpoint", ["/ready", "/opds/by-title"])
+def test_malformed_database_returns_stable_unavailable_response(
+    tmp_path: Path, endpoint: str
+):
+    """Map an invalid SQLite file to a non-sensitive service response."""
+    library = tmp_path / "library"
+    library.mkdir()
+    (library / "metadata.db").write_bytes(b"not a sqlite database")
+
+    response = make_client(library).get(endpoint)
+
+    assert (response.status_code, response.text) == (
+        503,
+        "Calibre database unavailable",
+    )
+    assert str(library) not in response.text
+
+
+@pytest.mark.parametrize("endpoint", ["/ready", "/opds/by-title"])
+def test_locked_database_returns_stable_unavailable_response(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, endpoint: str
+):
+    """Map a SQLite lock failure to the same stable service response."""
+    library = tmp_path / "library"
+    library.mkdir()
+    sqlite3.connect(library / "metadata.db").close()
+
+    async def locked_connect(*args, **kwargs):
+        raise aiosqlite.OperationalError("database is locked")
+
+    monkeypatch.setattr(aiosqlite, "connect", locked_connect)
+    response = make_client(library).get(endpoint)
+
+    assert (response.status_code, response.text) == (
+        503,
+        "Calibre database unavailable",
+    )
+    assert "locked" not in response.text

@@ -158,13 +158,16 @@ def test_service_endpoints_and_root_redirect(catalog_client):
     assert (redirect.status_code, redirect.headers["location"]) == (307, "/opds")
 
 
-def test_readiness_fails_safely_after_database_disappears(catalog_client):
-    """Avoid exposing filesystem details when metadata.db vanishes at
-    runtime."""
+@pytest.mark.parametrize("endpoint", ["/ready", "/opds/by-title"])
+def test_requests_fail_safely_after_database_disappears(catalog_client, endpoint):
+    """Return a safe unavailable response when metadata.db vanishes."""
     library, client = catalog_client
     (library / "metadata.db").unlink()
-    response = client.get("/ready")
-    assert (response.status_code, response.text) == (500, "Calibre DB not found")
+    response = client.get(endpoint)
+    assert (response.status_code, response.text) == (
+        503,
+        "Calibre database unavailable",
+    )
     assert str(library) not in response.text
 
 
