@@ -61,3 +61,11 @@ services:
       - /path_to_calibre_directory:/app/calibre:ro
 ```
 Then open http://localhost:9000/opds in your OPDS-compatible reader.
+
+## CI security policy
+
+Before publishing container images, CI scans the locked Python environment and
+a locally built `linux/amd64` image for known vulnerabilities. Any `HIGH` or
+`CRITICAL` finding blocks publication, including findings without an available
+fix. Lower-severity findings remain visible in the scanner output but do not
+block a release.
