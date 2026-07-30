@@ -115,6 +115,50 @@ def test_title_feed_paginates_at_boundaries(catalog_client):
     assert not links(beyond, "previous") and not links(beyond, "next")
 
 
+def test_catalog_ordering_uses_calibre_sort_fields_and_id_tie_breakers(
+    client_factory,
+):
+    """Use Calibre sort metadata and resolve equal ordering values by ID."""
+    library, client = client_factory(page_size=10)
+    with sqlite3.connect(library / "metadata.db") as connection:
+        # Display titles deliberately disagree with Calibre's normalized sort order.
+        connection.executemany(
+            "UPDATE books SET sort = ? WHERE id = ?",
+            [("Shared", 1), ("First", 2), ("Shared", 3), ("Last", 4)],
+        )
+        connection.execute(
+            "UPDATE books SET last_modified = '2024-01-01 00:00:00+00:00'"
+        )
+        connection.execute("UPDATE authors SET sort = 'Shared'")
+
+    expected_by_sort = [
+        "100% Unicode книга",
+        "Authorless",
+        "A <Practical> Book",
+        "Under_score",
+    ]
+    expected_by_id = [
+        "A <Practical> Book",
+        "100% Unicode книга",
+        "Under_score",
+        "Authorless",
+    ]
+
+    def entry_titles(endpoint: str, **params) -> list[str]:
+        """Return entry titles from a catalog endpoint."""
+        feed = parse_atom(client.get(endpoint, params=params))
+        return [entry.findtext("atom:title", namespaces=NS) for entry in entries(feed)]
+
+    assert entry_titles("/opds/by-title") == expected_by_sort
+    assert entry_titles("/opds/by-newest") == expected_by_id
+    assert entry_titles("/opds/search", q="") == expected_by_sort
+    assert entry_titles("/opds/author/1") == [
+        "A <Practical> Book",
+        "Under_score",
+    ]
+    assert entry_titles("/opds/by-author") == ["Ada & Sons", "Zoë Автор"]
+
+
 def test_author_feed_omits_navigation_beyond_last_page(catalog_client):
     """Omit pagination links when an author page contains no entries."""
     _, client = catalog_client
