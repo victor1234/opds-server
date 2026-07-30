@@ -1,16 +1,27 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Annotated
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
 
 class Config(BaseSettings):
+    """Application configuration loaded from environment variables."""
+
     app_name: str = "OPDS Server"
     package_name: str = "opds-server"
     calibre_library_path: Path = "/books"
     opds_prefix: str = "/opds"
-    page_size: int = 30
+    page_size: Annotated[int, Field(ge=1, le=100)] = 30
+
+    @field_validator("calibre_library_path")
+    @classmethod
+    def validate_calibre_library_path(cls, value: Path) -> Path:
+        """Require an unambiguous path without requiring a mounted library."""
+        if not value.is_absolute():
+            raise ValueError("CALIBRE_LIBRARY_PATH must be an absolute path")
+        return value
 
     @field_validator("opds_prefix", mode="before")
     @classmethod

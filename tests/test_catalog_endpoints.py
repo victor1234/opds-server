@@ -191,6 +191,16 @@ def test_service_endpoints_and_root_redirect(catalog_client):
     assert (redirect.status_code, redirect.headers["location"]) == (307, "/opds")
 
 
+def test_available_library_passes_startup_check(catalog_client, caplog):
+    """Start normally when the configured library is already available."""
+    _, client = catalog_client
+    with client:
+        response = client.get("/ready")
+
+    assert (response.status_code, response.text) == (200, "ok")
+    assert "Starting with Calibre database unavailable" not in caplog.text
+
+
 @pytest.mark.parametrize("endpoint", ["/ready", "/opds/by-title"])
 def test_requests_fail_safely_after_database_disappears(catalog_client, endpoint):
     """Return a safe unavailable response when metadata.db vanishes."""
@@ -250,6 +260,20 @@ def test_invalid_opds_prefix_is_rejected(prefix):
     """Reject prefixes that are not safe application URL paths."""
     with pytest.raises(ValidationError):
         Config(opds_prefix=prefix)
+
+
+@pytest.mark.parametrize("page_size", [1, 100])
+def test_page_size_boundaries_are_accepted(page_size):
+    """Accept the inclusive configured page-size boundaries."""
+    assert Config(page_size=page_size).page_size == page_size
+
+
+@pytest.mark.parametrize("page_size", ["invalid", "0", "-1", "101"])
+def test_invalid_page_size_environment_values_are_rejected(monkeypatch, page_size):
+    """Reject malformed and out-of-range PAGE_SIZE environment values."""
+    monkeypatch.setenv("PAGE_SIZE", page_size)
+    with pytest.raises(ValidationError):
+        Config(_env_file=None)
 
 
 def test_custom_opds_prefix_is_used_by_routes_and_generated_links(client_factory):

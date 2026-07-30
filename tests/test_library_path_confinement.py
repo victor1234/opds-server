@@ -1,5 +1,6 @@
 """Integration tests for confining Calibre-controlled filesystem paths."""
 
+import logging
 import sqlite3
 from pathlib import Path
 
@@ -7,8 +8,9 @@ import aiosqlite
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
+from pydantic import ValidationError
 
-from opds_server.core.config import Config, get_config
+from opds_server.core.config import Config
 from opds_server.db.access import get_db_path
 from opds_server.main import create_app
 
@@ -17,7 +19,6 @@ def make_client(library: Path) -> TestClient:
     """Create an isolated client configured to use the supplied library."""
     config = Config(calibre_library_path=library)
     app = create_app(config)
-    app.dependency_overrides[get_config] = lambda: config
     return TestClient(app, raise_server_exceptions=False)
 
 
@@ -176,3 +177,43 @@ def test_locked_database_returns_stable_unavailable_response(
         "Calibre database unavailable",
     )
     assert "locked" not in response.text
+
+
+@pytest.mark.parametrize("path", ["", ".", "relative/library"])
+def test_relative_library_paths_are_rejected(path: str):
+    """Reject empty and relative library paths during configuration."""
+    with pytest.raises(ValidationError):
+        Config(calibre_library_path=path)
+
+
+def test_readiness_recovers_without_restarting(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+):
+    """Stay live and follow database availability changes after startup."""
+    library = tmp_path / "late-library"
+    app = create_app(Config(calibre_library_path=library))
+
+    caplog.set_level(logging.WARNING, logger="uvicorn.error")
+    with TestClient(app, raise_server_exceptions=False) as client:
+        assert "Starting with Calibre database unavailable" in caplog.text
+        health = client.get("/healthz")
+        assert (health.status_code, health.text) == (200, "ok")
+        assert client.get("/ready").status_code == 503
+
+        library.mkdir()
+        sqlite3.connect(library / "metadata.db").close()
+        ready = client.get("/ready")
+        assert (ready.status_code, ready.text) == (200, "ok")
+
+        (library / "metadata.db").unlink()
+        response = client.get("/ready")
+        assert (response.status_code, response.text) == (
+            503,
+            "Calibre database unavailable",
+        )
+
+
+def test_missing_absolute_library_is_valid_configuration(tmp_path: Path):
+    """Allow an absolute library path to be mounted after configuration."""
+    config = Config(calibre_library_path=tmp_path / "not-mounted")
+    assert config.calibre_library_path == tmp_path / "not-mounted"
