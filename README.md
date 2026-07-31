@@ -5,7 +5,12 @@
 
 
 
-📚 Minimal OPDS 1.2 server for browsing a Calibre database.
+📚 A minimal, read-only OPDS 1.2 server for existing Calibre libraries.
+
+It is designed for containerized deployments where books are managed with
+Calibre but accessed through OPDS-compatible reader applications. The server
+provides catalog browsing and book acquisition without a web interface or
+library management features.
 
 ## Features
 - OPDS v1.2 compliant feeds (navigation, acquisition, search)
