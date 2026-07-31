@@ -1,7 +1,8 @@
 # OPDS Server
 
-[![CI]
-[![DOCKER IMAGE]
+[![CI](https://github.com/victor1234/opds-server/actions/workflows/ci.yml/badge.svg)](https://github.com/victor1234/opds-server/actions/workflows/ci.yml)
+[![Docker Image](https://img.shields.io/badge/docker-ghcr.io-blue)](https://ghcr.io/victor1234/opds-server)
+
 📚 A minimal, read-only OPDS 1.2 server for existing Calibre libraries.
 
 It is designed for containerized deployments where books are managed with
