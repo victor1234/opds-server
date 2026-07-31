@@ -67,7 +67,7 @@ that `/healthz` can continue to report process liveness. `/ready` checks the
 library on every request and returns `503 Calibre database unavailable` until
 `metadata.db` can be accessed.
 
-## Service Endpoints
+## Probe Endpoints
 
 - `/healthz` → *liveness probe* (returns `200` if the server process is alive)
 - `/ready` → *readiness probe* (returns `200` if the Calibre database is available)
