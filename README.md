@@ -42,11 +42,15 @@ show that changing the page-number interface would provide a material benefit.
 
 ## Installation / Run
 
+Mount the root directory of an existing Calibre library. It must contain
+`metadata.db` together with the author and book directories managed by Calibre.
+The container accesses the library read-only and does not modify its contents.
+
 ### Docker
 
 ```bash
 docker run --rm -p 9000:8000 \
-  -v /path_to_calibre_directory:/app/calibre:ro \
+  -v /path/to/calibre-library:/app/calibre:ro \
   ghcr.io/victor1234/opds-server:0.1.3
 ```
 
@@ -58,6 +62,6 @@ services:
     ports:
       - "9000:8000"
     volumes:
-      - /path_to_calibre_directory:/app/calibre:ro
+      - /path/to/calibre-library:/app/calibre:ro
 ```
 Then open http://localhost:9000/opds in your OPDS-compatible reader.
