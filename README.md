@@ -46,11 +46,16 @@ services:
       - /path/to/calibre-library:/app/calibre:ro
 ```
 
-Then open http://localhost:9000/opds in your OPDS-compatible reader.
+Verify that the library is available:
+
+```bash
+curl http://<server-address>:9000/ready
+```
+Then add `http://<server-address>:9000/opds` to your OPDS-compatible reader.
 
 ## Configuration
 
-The server can be configured using environment variables
+The server can be configured using environment variables:
 
 | Variable               | Default  | Description                                                                                       |
 | ---------------------- | -------- | ------------------------------------------------------------------------------------------------- |
