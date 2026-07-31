@@ -37,8 +37,9 @@ docker run --rm -p 9000:8000 \
 
 ```yaml
 services:
-  opds:
+  opds-server:
     image: ghcr.io/victor1234/opds-server:0.1.3
+    restart: unless-stopped
     ports:
       - 9000:8000
     volumes:
