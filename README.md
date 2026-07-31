@@ -13,10 +13,13 @@ provides catalog browsing and book acquisition without a web interface or
 library management features.
 
 ## Features
-- OPDS v1.2 compliant feeds (navigation, acquisition, search)
-- Browse by newest, title, or author
-- Prebuilt multi-arch Docker images for `amd64` and `arm64`
-- Read-only access to Calibre database
+
+- OPDS 1.2 navigation, acquisition, and search feeds
+- Browse books by newest, title, or author
+- Download available book formats from OPDS-compatible readers
+- Read-only access to existing Calibre libraries
+- Multi-architecture Docker images for `amd64` and `arm64`
+- Liveness and readiness endpoints for container orchestration
 
 ## Service Endpoints
 - `/healthz` → *liveness probe* (returns `200` if the server process is alive)
