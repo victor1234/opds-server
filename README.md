@@ -19,34 +19,6 @@ library management features.
 - Multi-architecture Docker images for `amd64` and `arm64`
 - Liveness and readiness endpoints for container orchestration
 
-## Service Endpoints
-
-- `/healthz` → *liveness probe* (returns `200` if the server process is alive)
-- `/ready` → *readiness probe* (returns `200` if the Calibre database is available)
-
-## Configuration
-
-The server can be configured using environment variables
-
-| Variable               | Default  | Description                                                                                       |
-| ---------------------- | -------- | ------------------------------------------------------------------------------------------------- |
-| `CALIBRE_LIBRARY_PATH` | `/books` | Absolute path to the mounted Calibre library.                                                     |
-| `PAGE_SIZE`            | `30`     | Number of books or authors shown on each OPDS feed page, from 1 through 100.                      |
-| `OPDS_PREFIX`          | `/opds`  | URL path where the catalog is mounted. A leading slash is optional; trailing slashes are removed. |
-
-The server starts when the configured library is temporarily unavailable so
-that `/healthz` can continue to report process liveness. `/ready` checks the
-library on every request and returns `503 Calibre database unavailable` until
-`metadata.db` can be accessed.
-
-## Pagination
-
-Catalog feeds use page numbers from 1 through 10,000 and offset pagination.
-Each request reads the current Calibre database, so books added or removed
-between page requests can cause entries to be repeated or skipped during a
-traversal. Keyset pagination is deferred unless benchmarks on large libraries
-show that changing the page-number interface would provide a material benefit.
-
 ## Installation / Run
 
 Mount the root directory of an existing Calibre library. It must contain
@@ -74,3 +46,31 @@ services:
 ```
 
 Then open http://localhost:9000/opds in your OPDS-compatible reader.
+
+## Configuration
+
+The server can be configured using environment variables
+
+| Variable               | Default  | Description                                                                                       |
+| ---------------------- | -------- | ------------------------------------------------------------------------------------------------- |
+| `CALIBRE_LIBRARY_PATH` | `/books` | Absolute path to the mounted Calibre library.                                                     |
+| `PAGE_SIZE`            | `30`     | Number of books or authors shown on each OPDS feed page, from 1 through 100.                      |
+| `OPDS_PREFIX`          | `/opds`  | URL path where the catalog is mounted. A leading slash is optional; trailing slashes are removed. |
+
+The server starts when the configured library is temporarily unavailable so
+that `/healthz` can continue to report process liveness. `/ready` checks the
+library on every request and returns `503 Calibre database unavailable` until
+`metadata.db` can be accessed.
+
+## Service Endpoints
+
+- `/healthz` → *liveness probe* (returns `200` if the server process is alive)
+- `/ready` → *readiness probe* (returns `200` if the Calibre database is available)
+
+## Pagination
+
+Catalog feeds use page numbers from 1 through 10,000 and offset pagination.
+Each request reads the current Calibre database, so books added or removed
+between page requests can cause entries to be repeated or skipped during a
+traversal. Keyset pagination is deferred unless benchmarks on large libraries
+show that changing the page-number interface would provide a material benefit.
