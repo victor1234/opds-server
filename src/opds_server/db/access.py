@@ -16,6 +16,11 @@ log = logging.getLogger(__name__)
 CALIBRE_DATETIME_FALLBACK = datetime(1970, 1, 1, tzinfo=UTC)
 
 
+def unicode_casefold(value: str | None) -> str:
+    """Return text folded for Unicode-aware caseless comparisons."""
+    return value.casefold() if value is not None else ""
+
+
 def parse_calibre_datetime(value: object) -> datetime:
     """Parse a Calibre timestamp, falling back to a stable Atom-safe value."""
     if not isinstance(value, str) or not value.strip():
@@ -78,6 +83,10 @@ async def connect_db(config: Config) -> AsyncIterator[aiosqlite.Connection]:
         conn = await aiosqlite.connect(
             get_db_uri(config),
             uri=True,
+        )
+        # SQLite's built-in NOCASE collation only folds ASCII characters.
+        await conn.create_function(
+            "unicode_casefold", 1, unicode_casefold, deterministic=True
         )
         try:
             yield conn
@@ -350,7 +359,7 @@ async def search_books(
     sql = """
           SELECT id, title, last_modified
           FROM books
-          WHERE title LIKE ? COLLATE NOCASE
+          WHERE unicode_casefold(title) LIKE unicode_casefold(?)
           ORDER BY sort, id
           """
 

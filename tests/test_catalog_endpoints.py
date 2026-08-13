@@ -10,7 +10,7 @@ import pytest
 from pydantic import ValidationError
 
 from opds_server.core.config import Config
-from opds_server.db.access import parse_calibre_datetime
+from opds_server.db.access import parse_calibre_datetime, unicode_casefold
 
 ATOM = "http://www.w3.org/2005/Atom"
 OPENSEARCH = "http://a9.com/-/spec/opensearch/1.1/"
@@ -83,6 +83,15 @@ def test_book_feeds_include_metadata_and_valid_acquisition_links(
 def test_calibre_datetime_parsing_is_stable(value, expected):
     """Normalize valid dates and use a stable fallback for invalid metadata."""
     assert parse_calibre_datetime(value) == expected
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [("Механика", "механика"), ("МЕХАНИКА", "механика"), (None, "")],
+)
+def test_unicode_casefold_normalizes_cyrillic_case(value, expected):
+    """Fold Cyrillic case consistently and safely handle SQLite nulls."""
+    assert unicode_casefold(value) == expected
 
 
 @pytest.mark.parametrize("last_modified", [None, "", "not-a-date"])
@@ -259,6 +268,34 @@ def test_search_special_queries(catalog_client, query, page, expected_title):
     titles = {entry.findtext("atom:title", namespaces=NS) for entry in entries(feed)}
     assert expected_title in titles
     assert parse_qs(urlsplit(links(feed, "self")[0].get("href")).query)["q"] == [query]
+
+
+@pytest.mark.parametrize("query", ["кириллица поиск", "КИРИЛЛИЦА ПОИСК"])
+def test_search_is_case_insensitive_for_cyrillic(catalog_client, query):
+    """Find a mixed-case Cyrillic title regardless of the query's case."""
+    library, client = catalog_client
+    with sqlite3.connect(library / "metadata.db") as connection:
+        connection.execute(
+            "UPDATE books SET title = ? WHERE id = 2", ("Кириллица Поиск",)
+        )
+
+    feed = parse_atom(client.get("/opds/search", params={"q": query}))
+
+    assert [entry.findtext("atom:title", namespaces=NS) for entry in entries(feed)] == [
+        "Кириллица Поиск"
+    ]
+
+
+@pytest.mark.parametrize("query", ["Practical", "practical", "PRACTICAL"])
+def test_search_remains_case_insensitive_for_latin(catalog_client, query):
+    """Preserve the existing ASCII case-insensitive search behavior."""
+    _, client = catalog_client
+
+    feed = parse_atom(client.get("/opds/search", params={"q": query}))
+
+    assert [entry.findtext("atom:title", namespaces=NS) for entry in entries(feed)] == [
+        "A <Practical> Book"
+    ]
 
 
 def test_empty_catalog_returns_valid_empty_feeds(client_factory):
