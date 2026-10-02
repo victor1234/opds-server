@@ -274,7 +274,13 @@ def test_author_navigation_detail_and_authorless_books(catalog_client):
     readable."""
     _, client = catalog_client
     author_feed = parse_atom(client.get("/opds/by-author"))
-    detail_href = entries(author_feed)[0].find("atom:link", NS).get("href")
+    for entry in entries(author_feed):
+        author_links = links(entry, "subsection")
+        assert len(author_links) == 1
+        assert author_links[0].get("type") == (
+            "application/atom+xml;profile=opds-catalog;kind=acquisition"
+        )
+    detail_href = links(entries(author_feed)[0], "subsection")[0].get("href")
     detail = parse_atom(client.get(detail_href))
     assert detail.findtext("atom:title", namespaces=NS) == "Books by Ada & Sons"
     assert {
