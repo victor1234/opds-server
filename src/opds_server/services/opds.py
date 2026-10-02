@@ -281,7 +281,7 @@ async def generate_by_author_feed(page: int, config: Config) -> str:
                 author={"name": "Calibre OPDS Server"},
                 updated_time=updated_time,
                 links=(
-                    f'<link type="application/atom+xml;profile=opds-catalog;kind=acquisition" '
+                    f'<link rel="subsection" type="application/atom+xml;profile=opds-catalog;kind=acquisition" '
                     f'href="{xml_text(config.opds_path(f"author/{author_id}"))}"/>'
                 ),
             )
