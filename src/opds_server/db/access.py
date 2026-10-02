@@ -199,7 +199,8 @@ async def get_author_name(author_id: int, config: Config) -> str:
             row = await cursor.fetchone()
     if not row:
         raise HTTPException(status_code=404, detail="Author not found")
-    return row[0]
+    # Calibre escapes commas within author names as pipes in storage.
+    return row[0].replace("|", ",")
 
 
 async def add_authors(books: list, config: Config) -> dict[int, dict]:
@@ -222,7 +223,9 @@ async def add_authors(books: list, config: Config) -> dict[int, dict]:
             book_ids,
         ) as cursor:
             async for book_id, author_id, name in cursor:
-                authors_by_book[book_id].append({"id": author_id, "name": name})
+                authors_by_book[book_id].append(
+                    {"id": author_id, "name": name.replace("|", ",")}
+                )
 
     result = {}
     for book_id, title, last_modified in books:
@@ -332,7 +335,11 @@ async def get_authors(page: int, config: Config) -> tuple[list, bool, bool]:
     has_next = len(authors) > limit
     has_previous = offset > 0 and bool(authors)
 
-    return authors[:limit], has_previous, has_next
+    return (
+        [(author_id, name.replace("|", ",")) for author_id, name in authors[:limit]],
+        has_previous,
+        has_next,
+    )
 
 
 async def get_author_books(
