@@ -231,6 +231,44 @@ def test_author_feed_omits_navigation_beyond_last_page(catalog_client):
     assert not links(beyond, "previous") and not links(beyond, "next")
 
 
+@pytest.mark.parametrize(
+    "stored_name",
+    ["Asimov| Isaac", "Анисимов| В. И.| & <Соавтор>", "Ada & Sons"],
+)
+def test_calibre_author_names_decode_commas_without_changing_storage(
+    client_factory, stored_name
+):
+    """Decode every escaped comma across feeds without splitting authors."""
+    library, client = client_factory(page_size=100)
+    with sqlite3.connect(library / "metadata.db") as connection:
+        connection.execute("UPDATE authors SET name = ? WHERE id = 1", (stored_name,))
+
+    expected_name = stored_name.replace("|", ",")
+    listing = parse_atom(client.get("/opds/by-author"))
+    assert entries(listing)[0].findtext("atom:title", namespaces=NS) == expected_name
+    detail = parse_atom(client.get("/opds/author/1"))
+    assert detail.findtext("atom:title", namespaces=NS) == f"Books by {expected_name}"
+    for endpoint in (
+        "/opds/author/1",
+        "/opds/by-title",
+        "/opds/by-newest",
+        "/opds/search?q=Practical",
+    ):
+        feed = parse_atom(client.get(endpoint))
+        book = next(
+            entry
+            for entry in entries(feed)
+            if entry.findtext("atom:title", namespaces=NS) == "A <Practical> Book"
+        )
+        assert book.findtext("atom:author/atom:name", namespaces=NS) == expected_name
+        assert book.findtext("atom:author/atom:uri", namespaces=NS) == "/opds/author/1"
+
+    with sqlite3.connect(library / "metadata.db") as connection:
+        assert connection.execute(
+            "SELECT name FROM authors WHERE id = 1"
+        ).fetchone() == (stored_name,)
+
+
 def test_author_navigation_detail_and_authorless_books(catalog_client):
     """Follow author links and keep authorless or multiply-authored books
     readable."""
