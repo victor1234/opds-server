@@ -7,7 +7,6 @@ on:
   pull_request:
 permissions:
   contents: read
-  packages: write
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
@@ -15,6 +14,36 @@ concurrency:
   group: docker-${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 jobs:
+  security:
+    runs-on: ubuntu-latest
+    env:
+      TRIVY_INCLUDE_DEV_DEPS: "true"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.3.1
+        with:
+          persist-credentials: false
+      - name: Scan vulnerabilities and misconfigurations
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          version: v0.76.1
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,misconfig
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+      # Secrets must fail at every severity, even if the previous scan fails.
+      - name: Scan secrets
+        if: ${{ !cancelled() }}
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          version: v0.76.1
+          scan-type: fs
+          scan-ref: .
+          scanners: secret
+          severity: UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL
+          exit-code: "1"
   verify:
     runs-on: ubuntu-latest
     steps:
@@ -37,8 +66,11 @@ jobs:
       - name: Run tests
         run: uv run --locked pytest
   docker:
-    needs: verify
+    needs: [verify, security]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
