@@ -1,20 +1,19 @@
 FROM python:3.12-alpine
 
-ENV POETRY_VERSION=2.1.4 \
+ENV UV_VERSION=0.13.5 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-RUN pip install --no-cache-dir "poetry==$POETRY_VERSION"
+RUN pip install --no-cache-dir "uv==$UV_VERSION"
 
 WORKDIR /app
 
-COPY pyproject.toml poetry.lock* /app/
+COPY pyproject.toml uv.lock /app/
 
 # Warm up to avoid findpython timeout on arm64 build
 RUN /usr/local/bin/python -EsSc 'import platform; print(platform.python_version())'
 
-RUN poetry config virtualenvs.create false \
-  && poetry -vvv install --only main --no-root --no-interaction --no-ansi
+RUN UV_PROJECT_ENVIRONMENT=/usr/local uv sync --locked --no-dev --no-install-project --inexact
 
 COPY src/ ./src/
 ENV PYTHONPATH=/app/src \

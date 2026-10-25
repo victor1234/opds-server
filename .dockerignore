@@ -1,7 +1,7 @@
 **
 
 !pyproject.toml
-!poetry.lock
+!uv.lock
 !src/
 
 src/**/__pycache__/

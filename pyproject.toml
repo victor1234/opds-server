@@ -15,18 +15,16 @@ dependencies = [
     "aiosqlite (>=0.21.0,<0.22.0)"
 ]
 
-[tool.poetry]
-packages = [{include = "opds_server", from = "src"}]
-
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.4.1"
-pytest-cov = "^6.2.1"
+[dependency-groups]
+dev = [
+    "pytest>=8.4.1,<9.0.0",
+    "pytest-cov>=6.2.1,<7.0.0",
+]
 
 [tool.pytest.ini_options]
 addopts = "--cov=opds_server --cov-report=term-missing --cov-fail-under=85"
 testpaths = ["tests"]
 
 [build-system]
-requires = ["poetry-core>=2.0.0,<3.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["uv_build==0.13.5"]
+build-backend = "uv_build"
