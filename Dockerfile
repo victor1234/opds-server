@@ -1,10 +1,9 @@
 FROM python:3.12-alpine
 
-ENV UV_VERSION=0.13.5 \
-    PYTHONDONTWRITEBYTECODE=1 \
+ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-RUN pip install --no-cache-dir "uv==$UV_VERSION"
+COPY --from=ghcr.io/astral-sh/uv:0.13.5 /uv /usr/local/bin/uv
 
 WORKDIR /app
 
