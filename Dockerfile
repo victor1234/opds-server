@@ -1,20 +1,18 @@
 FROM python:3.12-alpine
 
-ENV POETRY_VERSION=2.1.4 \
-    PYTHONDONTWRITEBYTECODE=1 \
+ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-RUN pip install --no-cache-dir "poetry==$POETRY_VERSION"
+COPY --from=ghcr.io/astral-sh/uv:0.13.5 /uv /usr/local/bin/uv
 
 WORKDIR /app
 
-COPY pyproject.toml poetry.lock* /app/
+COPY pyproject.toml uv.lock /app/
 
 # Warm up to avoid findpython timeout on arm64 build
 RUN /usr/local/bin/python -EsSc 'import platform; print(platform.python_version())'
 
-RUN poetry config virtualenvs.create false \
-  && poetry -vvv install --only main --no-root --no-interaction --no-ansi
+RUN UV_PROJECT_ENVIRONMENT=/usr/local uv sync --locked --no-dev --no-install-project --inexact
 
 COPY src/ ./src/
 ENV PYTHONPATH=/app/src \
