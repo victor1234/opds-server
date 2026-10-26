@@ -10,9 +10,8 @@ WORKDIR /app
 COPY pyproject.toml uv.lock /app/
 
 # Warm up to avoid findpython timeout on arm64 build
-RUN /usr/local/bin/python -EsSc 'import platform; print(platform.python_version())'
-
-RUN UV_PROJECT_ENVIRONMENT=/usr/local uv sync --locked --no-dev --no-install-project --inexact
+RUN /usr/local/bin/python -EsSc 'import platform; print(platform.python_version())' \
+    && UV_PROJECT_ENVIRONMENT=/usr/local uv sync --locked --no-dev --no-install-project --inexact
 
 COPY src/ ./src/
 ENV PYTHONPATH=/app/src \
@@ -22,7 +21,7 @@ ENV PYTHONPATH=/app/src \
 RUN addgroup -S -g 1000 appuser && adduser -S -u 1000 -G appuser appuser
 
 # Switch to the non-root user
-USER appuser
+USER 1000:1000
 
 EXPOSE 8000
 
