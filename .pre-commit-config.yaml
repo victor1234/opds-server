@@ -29,3 +29,14 @@ repos:
     rev: v1.7.7
     hooks:
       - id: actionlint
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.15.1
+    hooks:
+      - id: hadolint
+        language: mise
+        additional_dependencies: ["hadolint@2.15.1"]
+        args: ["--failure-threshold", "warning"]
+  - repo: https://github.com/reteps/dockerfmt
+    rev: v0.5.4
+    hooks:
+      - id: dockerfmt
